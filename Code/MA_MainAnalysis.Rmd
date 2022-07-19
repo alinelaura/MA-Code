@@ -1,0 +1,84 @@
+---
+title: "Masterthesis script"
+author: "Aline Laura Metzler"
+date: "5/26/2022"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+wefqwef
+```{r}
+library(ggplot2)
+library(tidyverse)
+library(dplyr)
+```
+
+# Masterarbeit Script
+
+```{r}
+data_sg <- read.csv("/Users/alinelaurametzler/Documents/Universität/Master/Master Thesis/Data/IndividualdatenSTISTAT_2010-2020_5818_Lieferungsdatum-2022-04-12/IndividualdatenSTISTAT_2010-2020_5818.csv") 
+
+data <- data_sg %>% 
+  rename(steuerb_einkommen=ziffer_268_veranlagt,
+         reinvermoegen=ziffer_326_veranlagt,
+         anz_ki_kinderabzug=ziffer_25,
+         anz_ki_u15_hh=ziffer_18,
+         steuer_tarif=ziffer_10
+         ) %>% 
+  mutate(abstimmungsdatum = as.Date(abstimmungsdatum, "%d.%m.%y"),
+         abstimmungsjahr = as.Date(as.character(abstimmungsjahr), format = "%Y"))
+  
+#is.na(data$massgebendesEinkommen)
+```
+
+Es ging vor allem darum, zu klären, weshalb sich eine nennenswerte Zahl an Abstimmenden keiner Steuerveranlagung zuordnen liess, aber wir haben schliesslich eine Erklärung gefunden. Indem wir den ganzen Datensatz noch mit den Bevölkerungsbewegungen verwoben haben kam zutage, dass es sich um Wegzüge handelt: jemand kann also noch Abstimmungsdaten aufweisen für einen oder mehrere Termine im Jahr X, ist dann aber noch im Jahr X aus dem Kanton weggezogen so dass für das komplette Jahr X keine Steuerveranlagung mehr vorliegt. Denn man ist ja an demjenigen Ort steuerpflichtig für das komplette Jahr, wo man am 31.12 gemeldet ist. Da müssten Sie sich dann behelfen, indem Sie ggf. für solche Personen die Daten aus der Veranlagung des letzten Jahres vor dem Wegzug nehmen oder Ähnliches. Ausser bei Personen, die weniger als 1 Jahr in SG gewohnt haben: dort hätten Sie dann natürlich auch im Vorjahr nichts drin (betrifft also alle Personen, die im Jahr X zuziehen und gleich wieder wegziehen aus dem Kanton).
+
+```{r}
+data %>% 
+  arrange(id_ek, abstimmungsjahr, abstimmungsmonat) %>% 
+  group_by(id_ek) %>% 
+  mutate(abst_reihe = row_number())
+  
+# summary(data$id_ek) <- id_ek = 11'000 NAs, id_loganto = 1,3 Mio. NAs
+# unique(data$id_loganto) <- 108'000 unique IDs
+# unique(data$id_ek) <- 123'000 unique IDs
+```
+
+
+```{r}
+
+data %>% 
+  group_by(abstimmungsjahr) %>% 
+  count(is.na(steuerb_einkommen))
+
+
+p1 <- data %>% 
+  group_by(abstimmungsjahr, bfsnr) %>% 
+  count(is.na(reinvermoegen)) %>% 
+  rename(`NA Steuerdaten` = `is.na(reinvermoegen)`) %>% 
+  #mutate(abstimmungsjahr = as.year(abstimmungsjahr)) %>% 
+  mutate(bfsnr = case_when(
+    bfsnr == 3203 ~ "Stadt St. Gallen",
+    bfsnr == 3231 ~ "Au (SG)",
+    bfsnr == 3237 ~ "Thal",
+    bfsnr == 3293 ~ "Mels",
+    bfsnr == 3295 ~ "Quarten",
+    bfsnr == 3338 ~ "Schmerikon",
+    bfsnr == 3359 ~ "Wildhaus-Alt St.Johann",
+    bfsnr == 3408 ~ "Uzwil",
+    bfsnr == 3443 ~ "Gossau (SG)"
+  )) %>% 
+  ggplot(aes(x=abstimmungsjahr, y=n, group=`NA Steuerdaten`, color=`NA Steuerdaten`)) +
+  geom_line() +
+  facet_wrap(~ bfsnr, ncol = 3) +
+  scale_x_date(date_breaks = "1 year",date_labels = "%Y") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))
+p1
+
+```
+
