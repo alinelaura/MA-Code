@@ -20,7 +20,8 @@ data_admin <- data_admin %>%
   ) %>%
   mutate(abstimmungsdatum = as.Date(abstimmungsdatum, "%d.%m.%Y"),
          abstimmungsjahr = as.integer(abstimmungsjahr),
-         abstimmungsmonat = as.integer(abstimmungsmonat))
+         abstimmungsmonat = as.integer(abstimmungsmonat)) %>% 
+  filter(!is.na(id_ek))
 
 
 #####################  Municipalities with no tax data  #########################
@@ -38,6 +39,7 @@ id_year <- data_admin %>%
   group_by(id_ek, abstimmungsjahr) %>% 
   unique() %>% 
   arrange(id_ek, abstimmungsjahr)
+
 
 # fill in missing years where people moved away and then moved back
 id_year <- id_year %>% 
@@ -71,14 +73,15 @@ data_prep <- id_year %>%
   filter(bfsnr != 0) %>% 
   left_join(data_admin, by = c("id_ek", "abstimmungsjahr", "bfsnr"))
 
-
+rm(id_year)
+rm(data_admin)
 ########################  Missing tax data from moving ##########################
 
 # Impute tax data of previous year if tax from previous year is available
 # create dummy variable for imputation
 data_imp <- data_prep %>% 
   group_by(id_ek, ID_move_change) %>% 
-  arrange(id_ek, ID_move_change, abstimmungsjahr, abst_reihe) %>% 
+  arrange(id_ek, ID_move_change, abstimmungsjahr) %>% 
   mutate(steuerb_einkommen_imputed = steuerb_einkommen) %>% 
   fill(steuerb_einkommen_imputed, .direction = "down") %>% 
   mutate(imputed = case_when(
@@ -87,17 +90,56 @@ data_imp <- data_prep %>%
     (is.na(steuerb_einkommen) & !is.na(steuerb_einkommen_imputed)) ~ 1
   ))
 
-
+rm(data_prep)
 ##################  Count of consequtively following votes ######################
 
 data <- data_imp %>% 
-  arrange(id_ek, abstimmungsjahr, abstimmungsmonat) %>% 
-  group_by(ID_move_change) %>% 
+  arrange(id_ek, ID_move_change, abstimmungsjahr, abstimmungsmonat) %>% 
+  group_by(id_ek, ID_move_change) %>% 
   dplyr::mutate(abst_reihe = row_number())
 
+rm(data_imp)
+##################### Create variable with type of voters #######################
 
-  
-  
-  
-  
+# Filter individuals that at least have 10 consecutive votes  
+data <- data %>% 
+  group_by(id_ek, ID_move_change) %>% 
+  dplyr::mutate(anz_folg_abst = max(abst_reihe)) %>% 
+  filter(anz_folg_abst >= 10) %>% 
+  ungroup() 
+
+# if individual moved and lived in community for 10 votes more than once
+# then take most recent stay (most recent move) in city
+data <- data %>% 
+  group_by(id_ek) %>%
+  dplyr::mutate(ind_mostrecent = max(ID_move_change)) %>% 
+  filter(ID_move_change %in% ind_mostrecent) 
+# %>% 
+#   select(-ID_move_change, -ind_mostrecent)
+
+
+# for individuals that have more than 10 consecutive votes, take most recent 10
+data <- data %>% 
+  arrange(id_ek, desc(abst_reihe)) %>% 
+  group_by(id_ek) %>%
+  slice(1:10) %>% 
+  arrange(id_ek, abst_reihe)
+
+
+length(unique(data$id_ek))  # 58'535 individuals for SG city
+
+
+# create type of voters
+# count number of times participated, then create variable of voter type
+data <- data %>% 
+  group_by(id_ek) %>% 
+  dplyr::mutate(anz_teilnahme = sum(beteiligt)) %>% 
+  dplyr::mutate(vote_type = case_when(
+    anz_teilnahme <1 ~ "never voter",
+    anz_teilnahme >= 9 ~ "always voter",
+    TRUE ~ "selective voter"
+  ))
+
+
+count(data$vote_type)  
   
