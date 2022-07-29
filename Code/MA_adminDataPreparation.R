@@ -8,10 +8,10 @@ library(lubridate)
 library(tidyr)
 
 # Read Data
-data_sg <- read.csv("/Users/alinelaurametzler/Documents/Universität/Master/Master Thesis/Data/IndividualdatenSTISTAT_2010-2020_5818_Lieferungsdatum-2022-04-12/IndividualdatenSTISTAT_2010-2020_5818.csv") 
+data_admin <- read.csv("/Users/alinelaurametzler/Documents/Universität/Master/Master Thesis/Data/IndividualdatenSTISTAT_2010-2020_5818_Lieferungsdatum-2022-04-12/IndividualdatenSTISTAT_2010-2020_5818.csv") 
 
-
-data_prep <- data_sg %>% 
+# Rename variables and format dates
+data_admin <- data_admin %>% 
   dplyr::rename(steuerb_einkommen=ziffer_268_veranlagt,
          reinvermoegen=ziffer_326_veranlagt,
          anz_ki_kinderabzug=ziffer_25,
@@ -25,14 +25,15 @@ data_prep <- data_sg %>%
 
 #####################  Municipalities with no tax data  #########################
 
-# Bis abgeklärt Steuern in anderen Gemeinden: Nur Stadt SG
-data_prep <- data_prep %>% 
+# For now: only SG city has tax data available
+data_admin <- data_admin %>% 
   filter(bfsnr == 3203)
 
 
 ############## Account for people who moved and then moved back #################
 
-id_year <- data_prep %>% 
+# All individuals and the years they lived in the community
+id_year <- data_admin %>% 
   select(id_ek, abstimmungsjahr, bfsnr) %>% 
   group_by(id_ek, abstimmungsjahr) %>% 
   unique() %>% 
@@ -46,86 +47,55 @@ id_year <- id_year %>%
            fill = list(bfsnr = 0)) %>% 
   mutate(abstimmungsjahr = as.integer(abstimmungsjahr)) 
 
+# different ID for individuals before and after they move
+# for every change in bfsnr increase by 1
 id_year <- id_year %>% 
-# different ID for before and after move
-  # for every change in bfsnr increase by 1
-  mutate(pers_change = cumsum(c(1,diff(id_year$bfsnr)!=0))) %>% 
+  mutate(pers_change = cumsum(c(1, diff(id_year$bfsnr) != 0))) %>% 
   group_by(id_ek, pers_change) %>% 
   dplyr::mutate(ID_move_change = cur_group_id()) %>% 
   ungroup() %>% 
   select(-pers_change) 
 
 # # Controll that it worked 
-# weg_und_zuzuege <- id_year %>% 
-#   ungroup() %>% 
-#   filter(bfsnr == 0) %>% 
-#   select(id_ek) %>% 
-#   unique() %>% 
+# weg_und_zuzuege <- id_year %>%
+#   ungroup() %>%
+#   filter(bfsnr == 0) %>%
+#   select(id_ek) %>%
+#   unique() %>%
 #   left_join(id_year, by = "id_ek")
 
 
 # Join new Identification to big DF
-data <- id_year %>% 
+# delete the missing years again
+data_prep <- id_year %>% 
   filter(bfsnr != 0) %>% 
-  left_join(data_prep, by = c("id_ek", "abstimmungsjahr", "bfsnr"))
+  left_join(data_admin, by = c("id_ek", "abstimmungsjahr", "bfsnr"))
 
 
-##################  Count of consequtively following votes ######################
+########################  Missing tax data from moving ##########################
 
-data <- data %>% 
-  arrange(id_ek, abstimmungsjahr, abstimmungsmonat) %>% 
-  group_by(ID_move_change) %>% 
-  dplyr::mutate(abst_reihe = row_number())
-
-
-###########################  People that moved away  ############################
-
-# Personen, welche kein NA bei Steuerdaten haben (community_live_longer1=2)
-
-# Personen, die in mehr als einem Jahr in Gemeinde wohnen, aber keine Steuerdaten 
-# aufweisen (community_live_longer1=1). Hier könnte Steuerwert von Vorjahr verwendet
-# werden
-
-# Personen, welche keine Steuerdaten aufweisen und nicht in zwei unterschiedlichen 
-# Jahren in Gemeinde gewohnt haben (community_live_longer1=0). Hier kann kein Wert 
-# imputed werden.
-
-
-people_moved <- data %>% 
-  group_by(id_ek) %>% 
-  mutate(community_live_longer1 = case_when(
-    !is.na(steuerb_einkommen) ~ 2,
-    length(unique(abstimmungsjahr)) > 1 ~ 1,
-    TRUE ~ 0
-  )) %>% 
-  select(id_ek, abstimmungsjahr, abstimmungsdatum, community_live_longer1, abst_reihe, steuerb_einkommen) 
-
-
-# Impute tax data of previous year if community_live_longer1 = 1
+# Impute tax data of previous year if tax from previous year is available
 # create dummy variable for imputation
-test <- people_moved %>% 
-  group_by(id_ek) %>% 
-  arrange(id_ek, abstimmungsjahr, abst_reihe) %>% 
+data_imp <- data_prep %>% 
+  group_by(id_ek, ID_move_change) %>% 
+  arrange(id_ek, ID_move_change, abstimmungsjahr, abst_reihe) %>% 
   mutate(steuerb_einkommen_imputed = steuerb_einkommen) %>% 
-  fill(steuerb_einkommen_imputed, .direction = "downup") %>% 
+  fill(steuerb_einkommen_imputed, .direction = "down") %>% 
   mutate(imputed = case_when(
     !is.na(steuerb_einkommen) ~ 0,
     is.na(steuerb_einkommen_imputed) ~ 0,
     (is.na(steuerb_einkommen) & !is.na(steuerb_einkommen_imputed)) ~ 1
   ))
 
-# Only impute when the tax data is from previous year
-test <- test %>% 
-  group_by(id_ek, abstimmungsjahr) %>% 
-  mutate(steuerb_einkommen_imputed = case_when(
-    
-  ))
 
-people_short <- people_moved %>% 
-  select(id_ek, abstimmungsjahr, abstimmungsdatum, community_live_longer1, abst_reihe, steuerb_einkommen) 
-  
-  
-  
+##################  Count of consequtively following votes ######################
+
+data <- data_imp %>% 
+  arrange(id_ek, abstimmungsjahr, abstimmungsmonat) %>% 
+  group_by(ID_move_change) %>% 
+  dplyr::mutate(abst_reihe = row_number())
+
+
   
   
   
