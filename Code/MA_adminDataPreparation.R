@@ -7,6 +7,7 @@ library(zoo)
 library(lubridate)
 library(tidyr)
 
+
 # Read Data
 data_admin <- read.csv("/Users/alinelaurametzler/Documents/Universität/Master/Master Thesis/Data/IndividualdatenSTISTAT_2010-2020_5818_Lieferungsdatum-2022-04-12/IndividualdatenSTISTAT_2010-2020_5818.csv") 
 
@@ -21,6 +22,7 @@ data_admin <- data_admin %>%
   mutate(abstimmungsdatum = as.Date(abstimmungsdatum, "%d.%m.%Y"),
          abstimmungsjahr = as.integer(abstimmungsjahr),
          abstimmungsmonat = as.integer(abstimmungsmonat)) %>% 
+  mutate(steuer_tarif = as.factor(steuer_tarif)) %>% 
   filter(!is.na(id_ek))
 
 
@@ -52,7 +54,8 @@ id_year <- id_year %>%
 # different ID for individuals before and after they move
 # for every change in bfsnr increase by 1
 id_year <- id_year %>% 
-  mutate(pers_change = cumsum(c(1, diff(id_year$bfsnr) != 0))) %>% 
+  ungroup() %>% 
+  dplyr::mutate(pers_change = cumsum(c(1, diff(id_year$bfsnr) != 0))) %>% 
   group_by(id_ek, pers_change) %>% 
   dplyr::mutate(ID_move_change = cur_group_id()) %>% 
   ungroup() %>% 
@@ -75,6 +78,7 @@ data_prep <- id_year %>%
 
 rm(id_year)
 rm(data_admin)
+
 ########################  Missing tax data from moving ##########################
 
 # Impute tax data of previous year if tax from previous year is available
@@ -82,8 +86,22 @@ rm(data_admin)
 data_imp <- data_prep %>% 
   group_by(id_ek, ID_move_change) %>% 
   arrange(id_ek, ID_move_change, abstimmungsjahr) %>% 
+  mutate(rolle_imputed = rolle) %>% 
+  fill(rolle_imputed, .direction = "down") %>%
+  mutate(veranlagung_id_imputed = veranlagung_id) %>% 
+  fill(veranlagung_id_imputed, .direction = "down") %>%
+  mutate(steuer_tarif_imputed = steuer_tarif) %>% 
+  fill(steuer_tarif_imputed, .direction = "down") %>%
+  mutate(anz_ki_u15_hh_imputed = anz_ki_u15_hh) %>% 
+  fill(anz_ki_u15_hh_imputed, .direction = "down") %>%
+  mutate(anz_ki_kinderabzug_imputed = anz_ki_kinderabzug) %>% 
+  fill(anz_ki_kinderabzug_imputed, .direction = "down") %>%
   mutate(steuerb_einkommen_imputed = steuerb_einkommen) %>% 
   fill(steuerb_einkommen_imputed, .direction = "down") %>% 
+  mutate(reinvermoegen_imputed = reinvermoegen) %>% 
+  fill(reinvermoegen_imputed, .direction = "down") %>%
+  mutate(massgebendesEinkommen_imputed = massgebendesEinkommen) %>% 
+  fill(massgebendesEinkommen_imputed, .direction = "down") %>%
   mutate(imputed = case_when(
     !is.na(steuerb_einkommen) ~ 0,
     is.na(steuerb_einkommen_imputed) ~ 0,
@@ -91,7 +109,8 @@ data_imp <- data_prep %>%
   ))
 
 rm(data_prep)
-##################  Count of consequtively following votes ######################
+
+##################  Count of consecutively following votes ######################
 
 data <- data_imp %>% 
   arrange(id_ek, ID_move_change, abstimmungsjahr, abstimmungsmonat) %>% 
@@ -99,6 +118,7 @@ data <- data_imp %>%
   dplyr::mutate(abst_reihe = row_number())
 
 rm(data_imp)
+
 ##################### Create variable with type of voters #######################
 
 # Filter individuals that at least have 10 consecutive votes  
@@ -138,8 +158,16 @@ data <- data %>%
     anz_teilnahme <1 ~ "never voter",
     anz_teilnahme >= 9 ~ "always voter",
     TRUE ~ "selective voter"
-  ))
+    ))
+
+# only have most recent vote for individuals for mlogit
+data_mlogit <- data %>% 
+  group_by(id_ek) %>% 
+  filter(abst_reihe == max(abst_reihe))
 
 
-count(data$vote_type)  
+# count(data$vote_type)  
+#    always voter 126120
+#     never voter 170730
+# selective voter 288500
   

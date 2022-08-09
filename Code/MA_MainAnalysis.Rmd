@@ -18,34 +18,96 @@ library(dplyr)
 ```
 
 # Masterarbeit Script
+ 
+
+## Deskriptive Analysis
+
+Data is read and prepared in separate file. The variable for the type of voter is created by filtering individuals that lived in the same community for at least ten consecutive votes. For each individeual the 10 most recent votes were selected. This allows for the classification of these individuals into "never voters" (0-1 participation), "selective voters" (2-8 participation) and "always voters" (9-10 participation). 
 
 ```{r}
-data_sg <- read.csv("/Users/alinelaurametzler/Documents/Universität/Master/Master Thesis/Data/IndividualdatenSTISTAT_2010-2020_5818_Lieferungsdatum-2022-04-12/IndividualdatenSTISTAT_2010-2020_5818.csv") 
-
-data <- data_sg %>% 
-  rename(steuerb_einkommen=ziffer_268_veranlagt,
-         reinvermoegen=ziffer_326_veranlagt,
-         anz_ki_kinderabzug=ziffer_25,
-         anz_ki_u15_hh=ziffer_18,
-         steuer_tarif=ziffer_10
-         ) %>% 
-  mutate(abstimmungsdatum = as.Date(abstimmungsdatum, "%d.%m.%y"),
-         abstimmungsjahr = as.Date(as.character(abstimmungsjahr), format = "%Y"))
-  
-#is.na(data$massgebendesEinkommen)
+source("MA_adminDataPreparation.R", local = knitr::knit_global())
 ```
 
-Es ging vor allem darum, zu klären, weshalb sich eine nennenswerte Zahl an Abstimmenden keiner Steuerveranlagung zuordnen liess, aber wir haben schliesslich eine Erklärung gefunden. Indem wir den ganzen Datensatz noch mit den Bevölkerungsbewegungen verwoben haben kam zutage, dass es sich um Wegzüge handelt: jemand kann also noch Abstimmungsdaten aufweisen für einen oder mehrere Termine im Jahr X, ist dann aber noch im Jahr X aus dem Kanton weggezogen so dass für das komplette Jahr X keine Steuerveranlagung mehr vorliegt. Denn man ist ja an demjenigen Ort steuerpflichtig für das komplette Jahr, wo man am 31.12 gemeldet ist. Da müssten Sie sich dann behelfen, indem Sie ggf. für solche Personen die Daten aus der Veranlagung des letzten Jahres vor dem Wegzug nehmen oder Ähnliches. Ausser bei Personen, die weniger als 1 Jahr in SG gewohnt haben: dort hätten Sie dann natürlich auch im Vorjahr nichts drin (betrifft also alle Personen, die im Jahr X zuziehen und gleich wieder wegziehen aus dem Kanton).
+### Make categories for numerical variables
+
+Age:
+1st Quintile: 18-30 years
+2nd Quintile: 31-45 years
+3rd Quintile: 46-60 years
+4th Quintile: 61-75 years
+5th Quintile: >75 years
+
+Gender:
+Male: 1
+Female: 2
+
+(Zivilstand: )
+
+Konfession:
+- Christliche Konfession
+- Andere/Keine Konfession
+
+Aufenthalt in Gemeinde:
+- 0-10: Jahre
+- >10 Jahre
+
+Zugezogen:
+- In CH Geboren
+- Zugezogen 
+
+Einkommen (massgebendes Einkommen vs. Äquivalnezeinkommen:
+1st Quartile: 0-25'000.-
+2nd Quartile: 25'000-55'000.-
+3rd Quartile: 55'000-90'000.-
+4th Quartile: >90'000.-
+
+Vermögen:
+1st Quartile: 0-8'000.-
+2nd Quartile: 8'000-60'000.-
+3rd Quartile: 60'000-185'000.-
+4th Quartile: >185'000.-
 
 ```{r}
-data %>% 
-  arrange(id_ek, abstimmungsjahr, abstimmungsmonat) %>% 
-  group_by(id_ek) %>% 
-  mutate(abst_reihe = row_number())
+
+data_mlogit <- data_mlogit %>% 
+  mutate(alter_c = case_when(
+    alter_v <= 30 ~ "18-30-Jährige",
+    alter_v > 30 && alter_v <= 45 ~ "31-45-Jährige",
+    alter_v > 45 && alter_v <= 60  ~ "46-60-Jährige",
+    alter_v > 60 && alter_v <= 75 ~ "61-75-Jährige",
+    alter_v > 75 ~ "Über 75-Jährige"
+    )) %>% 
+  mutate(sex_c = case_when(
+    sex == 1 ~ "Mann",
+    sex == 2 ~ "Frau"
+  )) %>% 
+  mutate(konfession_c = case_when(
+    konfession %in% c(1, 2) ~ "Christliche Konfession",
+    TRUE ~ "Andere/keine Konfession"
+  )) %>% 
+  mutate(residenz10 = case_when(
+    aufenthaltsdaueringemeinde %in% c(1, 2, 3) ~ "0-10 Jahre",
+    TRUE ~ "Mehr als 10 Jahre"
+  )) %>% 
+  mutate(zugezogen = case_when(
+    Geburtsstaat == 8100 ~ "In CH geboren",
+    TRUE ~ "Zugezogen"
+  )) %>% 
+  mutate(mEinkommen_c = case_when(
+    massgebendesEinkommen <= 25000 ~ "0-25'000.-",
+    massgebendesEinkommen > 25000 && massgebendesEinkommen <= 55000 ~ "25'000-55'000.-",
+    massgebendesEinkommen > 55000 && massgebendesEinkommen <= 90000 ~ "55'000-90'000.-",
+    massgebendesEinkommen > 90000 ~ "Über 90'000.-"
+  )) %>% 
+  mutate(Vermoegen_c = case_when(
+    reinvermoegen <= 8000 ~ "0-8'000.-",
+    reinvermoegen > 8000 && reinvermoegen <= 60000 ~ "8'000-60'000.-",
+    reinvermoegen > 60000 && reinvermoegen <= 185000 ~ "60'000-185'000.-",
+    reinvermoegen > 185000 ~ "Über 185'000.-"
+  ))
   
-# summary(data$id_ek) <- id_ek = 11'000 NAs, id_loganto = 1,3 Mio. NAs
-# unique(data$id_loganto) <- 108'000 unique IDs
-# unique(data$id_ek) <- 123'000 unique IDs
+
+
 ```
 
 
