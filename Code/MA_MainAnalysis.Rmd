@@ -15,6 +15,7 @@ wefqwef
 library(ggplot2)
 library(tidyverse)
 library(dplyr)
+library(forcats)
 ```
 
 # Masterarbeit Script
@@ -69,46 +70,52 @@ Vermögen:
 
 ```{r}
 
-data_mlogit <- data_mlogit %>% 
-  mutate(alter_c = case_when(
+mlogit_dat <- data_mlogit %>% 
+  mutate(alter_c = as.factor(case_when(
     alter_v <= 30 ~ "18-30-Jährige",
     alter_v > 30 && alter_v <= 45 ~ "31-45-Jährige",
     alter_v > 45 && alter_v <= 60  ~ "46-60-Jährige",
     alter_v > 60 && alter_v <= 75 ~ "61-75-Jährige",
     alter_v > 75 ~ "Über 75-Jährige"
-    )) %>% 
-  mutate(sex_c = case_when(
+    ))) %>% 
+  mutate(sex_c = as.factor(case_when(
     sex == 1 ~ "Mann",
     sex == 2 ~ "Frau"
-  )) %>% 
-  mutate(konfession_c = case_when(
+  ))) %>% 
+  mutate(konfession_c = as.factor(case_when(
     konfession %in% c(1, 2) ~ "Christliche Konfession",
     TRUE ~ "Andere/keine Konfession"
-  )) %>% 
-  mutate(residenz10 = case_when(
+  ))) %>% 
+  mutate(residenz10 = as.factor(case_when(
     aufenthaltsdaueringemeinde %in% c(1, 2, 3) ~ "0-10 Jahre",
     TRUE ~ "Mehr als 10 Jahre"
-  )) %>% 
-  mutate(zugezogen = case_when(
+  ))) %>% 
+  mutate(zugezogen = as.factor(case_when(
     Geburtsstaat == 8100 ~ "In CH geboren",
     TRUE ~ "Zugezogen"
-  )) %>% 
-  mutate(mEinkommen_c = case_when(
+  ))) %>% 
+  mutate(mEinkommen_c = as.factor(case_when(
     massgebendesEinkommen <= 25000 ~ "0-25'000.-",
     massgebendesEinkommen > 25000 && massgebendesEinkommen <= 55000 ~ "25'000-55'000.-",
     massgebendesEinkommen > 55000 && massgebendesEinkommen <= 90000 ~ "55'000-90'000.-",
     massgebendesEinkommen > 90000 ~ "Über 90'000.-"
-  )) %>% 
-  mutate(Vermoegen_c = case_when(
+  ))) %>% 
+  mutate(Vermoegen_c = as.factor(case_when(
     reinvermoegen <= 8000 ~ "0-8'000.-",
     reinvermoegen > 8000 && reinvermoegen <= 60000 ~ "8'000-60'000.-",
     reinvermoegen > 60000 && reinvermoegen <= 185000 ~ "60'000-185'000.-",
     reinvermoegen > 185000 ~ "Über 185'000.-"
-  )) %>% 
-  mutate(vote_type = as.character(vote_type)) %>% 
-  ungroup()
-  
-
+  ))) %>% 
+  mutate(vote_type = as.factor(vote_type)) %>% 
+  ungroup() %>% 
+  mutate(vote_type =  fct_relevel(vote_type, c("never voter", "selective voter", "always voter")),
+         alter_c = fct_relevel(alter_c, c("18-30-Jährige","31-45-Jährige","46-60-Jährige","61-75-Jährige","Über 75-Jährige")),
+         sex_c = fct_relevel(sex_c, c("Mann", "Frau")),
+         konfession_c = fct_relevel(konfession_c, c("Andere/keine Konfession", "Christliche Konfession")),
+         residenz10 = fct_relevel(residenz10, c("0-10 Jahre", "Mehr als 10 Jahre")),
+         zugezogen = fct_relevel(zugezogen, c("In CH geboren","Zugezogen")),
+         mEinkommen_c = fct_relevel(mEinkommen_c, c("0-25'000.-","25'000-55'000.-","55'000-90'000.-","Über 90'000.-")),
+         Vermoegen_c = fct_relevel(Vermoegen_c, c("0-8'000.-","8'000-60'000.-","60'000-185'000.-","Über 185'000.-")))
 
 ```
 
@@ -118,25 +125,27 @@ data_mlogit <- data_mlogit %>%
 library(mlogit)
 
 
-# Generating the Person-Choice Matrix
-data_mlogitprep <- as.data.frame(data_mlogit) %>% 
-  select(vote_type, alter_c, sex_c, konfession_c, residenz10, zugezogen, mEinkommen_c, Vermoegen_c) %>% 
-  na.omit()
-data_mlogit.pc <- mlogit.data(data_mlogitprep,
-                              varying = 2:8,
-                              choice = "vote_type",
-                              shape = "wide",
-                              sep = "_")
-head(data_mlogit.pc)
+# # Generating the Person-Choice Matrix
+# data_mlogitprep <- as.data.frame(data_mlogit) %>% 
+#   select(vote_type, alter_c, sex_c, konfession_c, residenz10, zugezogen, mEinkommen_c, Vermoegen_c) %>% 
+#   na.omit()
+# data_mlogit.pc <- mlogit.data(data_mlogitprep,
+#                               varying = 2:8,
+#                               choice = "vote_type",
+#                               shape = "wide",
+#                               sep = "_")
+# head(data_mlogit.pc)
+# 
+# mlogit.fit <- mlogit(vote_type ~ 0 | alter_c + sex_c + konfession_c + residenz10 + zugezogen + mEinkommen_c + Vermoegen_c,
+#                           shape = "long",
+#                           data = data_mlogit.pc)
 
-mlogit.fit <- mlogit(vote_type ~ 0 | alter_c + sex_c + konfession_c + residenz10 + zugezogen + mEinkommen_c + Vermoegen_c,
-                          shape = "long",
-                          data = data_mlogit.pc)
-
-# library(nnet)
-# mlogit <- multinom(vote_type ~ alter_c + sex_c + konfession_c + residenz10 + zugezogen + mEinkommen_c + Vermoegen_c,
-#                    data = data_mlogit)
-# summary(mlogit)
+library(nnet)
+library(stargazer)
+mlogit <- multinom(vote_type ~ alter_c + sex_c + konfession_c + residenz10 + zugezogen + mEinkommen_c + Vermoegen_c,
+                   data = mlogit_dat)
+summary(mlogit)
+stargazer(mlogit, type = "text")
 ```
 
 
