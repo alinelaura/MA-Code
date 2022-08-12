@@ -116,9 +116,22 @@ data_mlogit <- data_mlogit %>%
 
 ```{r}
 library(mlogit)
+
+
+# Generating the Person-Choice Matrix
+data_mlogitprep <- as.data.frame(data_mlogit) %>% 
+  select(vote_type, alter_c, sex_c, konfession_c, residenz10, zugezogen, mEinkommen_c, Vermoegen_c) %>% 
+  na.omit()
+data_mlogit.pc <- mlogit.data(data_mlogitprep,
+                              varying = 2:8,
+                              choice = "vote_type",
+                              shape = "wide",
+                              sep = "_")
+head(data_mlogit.pc)
+
 mlogit.fit <- mlogit(vote_type ~ 0 | alter_c + sex_c + konfession_c + residenz10 + zugezogen + mEinkommen_c + Vermoegen_c,
                           shape = "long",
-                          data = data_mlogit)
+                          data = data_mlogit.pc)
 
 # library(nnet)
 # mlogit <- multinom(vote_type ~ alter_c + sex_c + konfession_c + residenz10 + zugezogen + mEinkommen_c + Vermoegen_c,
