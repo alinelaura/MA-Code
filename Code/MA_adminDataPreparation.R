@@ -158,7 +158,14 @@ data <- data %>%
     anz_teilnahme <1 ~ "never voter",
     anz_teilnahme >= 9 ~ "always voter",
     TRUE ~ "selective voter"
-    ))
+    )) %>% 
+  dplyr::mutate(vote_type_det = case_when(
+    anz_teilnahme <1 ~ "never voter",
+    anz_teilnahme >= 1 && anz_teilnahme < 4 ~ "seldom voter",
+    anz_teilnahme >= 4 && anz_teilnahme < 7 ~ "occasional voter",
+    anz_teilnahme >= 7 && anz_teilnahme < 10 ~ "frequentl voter",
+    TRUE ~ "selective voter"
+  ))
 
 # only have most recent vote for individuals for mlogit
 data_mlogit <- data %>% 

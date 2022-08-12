@@ -106,9 +106,11 @@ mlogit_dat <- data_mlogit %>%
     reinvermoegen > 60000 && reinvermoegen <= 185000 ~ "60'000-185'000.-",
     reinvermoegen > 185000 ~ "Über 185'000.-"
   ))) %>% 
-  mutate(vote_type = as.factor(vote_type)) %>% 
+  mutate(vote_type = as.factor(vote_type),
+         vote_type_det = as.factor(vote_type_det)) %>% 
   ungroup() %>% 
   mutate(vote_type =  fct_relevel(vote_type, c("never voter", "selective voter", "always voter")),
+         vote_type_det =  fct_relevel(vote_type, c("never voter","seldom voter","occasional voter","frequentl voter","always voter")),
          alter_c = fct_relevel(alter_c, c("18-30-Jährige","31-45-Jährige","46-60-Jährige","61-75-Jährige","Über 75-Jährige")),
          sex_c = fct_relevel(sex_c, c("Mann", "Frau")),
          konfession_c = fct_relevel(konfession_c, c("Andere/keine Konfession", "Christliche Konfession")),
@@ -122,9 +124,8 @@ mlogit_dat <- data_mlogit %>%
 ### Multinomial Logit Model
 
 ```{r}
-library(mlogit)
-
-
+# library(mlogit)
+#
 # # Generating the Person-Choice Matrix
 # data_mlogitprep <- as.data.frame(data_mlogit) %>% 
 #   select(vote_type, alter_c, sex_c, konfession_c, residenz10, zugezogen, mEinkommen_c, Vermoegen_c) %>% 
@@ -144,8 +145,14 @@ library(nnet)
 library(stargazer)
 mlogit <- multinom(vote_type ~ alter_c + sex_c + konfession_c + residenz10 + zugezogen + mEinkommen_c + Vermoegen_c,
                    data = mlogit_dat)
-summary(mlogit)
 stargazer(mlogit, type = "text")
+```
+
+
+```{r}
+mlogit_det <- multinom(vote_type_det ~ alter_c + sex_c + konfession_c + residenz10 + zugezogen + mEinkommen_c + Vermoegen_c,
+                   data = mlogit_dat)
+stargazer(mlogit_det, type = "text")
 ```
 
 
