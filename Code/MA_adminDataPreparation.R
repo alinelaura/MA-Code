@@ -173,8 +173,90 @@ data_mlogit <- data %>%
   filter(abst_reihe == max(abst_reihe))
 
 
-# count(data$vote_type)  
-#    always voter 126120
-#     never voter 170730
-# selective voter 288500
+###### Make categories for numerical variables & define levels of variables #####
+# Age:
+#   1st Quintile: 18-30 years
+# 2nd Quintile: 31-45 years
+# 3rd Quintile: 46-60 years
+# 4th Quintile: 61-75 years
+# 5th Quintile: >75 years
+# 
+# Gender:
+#   Male: 1
+# Female: 2
+# 
+# (Zivilstand: )
+# 
+# Konfession:
+#   - Christliche Konfession
+# - Andere/Keine Konfession
+# 
+# Aufenthalt in Gemeinde:
+#   - 0-10: Jahre
+# - >10 Jahre
+# 
+# Zugezogen:
+#   - In CH Geboren
+# - Zugezogen
+# 
+# Einkommen (massgebendes Einkommen vs. Äquivalnezeinkommen:
+#              1st Quartile: 0-25'000.-
+# 2nd Quartile: 25'000-55'000.-
+# 3rd Quartile: 55'000-90'000.-
+# 4th Quartile: >90'000.-
+#              
+#              Vermögen:
+#              1st Quartile: 0-8'000.-
+# 2nd Quartile: 8'000-60'000.-
+# 3rd Quartile: 60'000-185'000.-
+
+
+data_mlogit <- data_mlogit %>% 
+  mutate(alter_c = as.factor(case_when(
+    alter_v <= 30 ~ "18-30-Jährige",
+    alter_v > 30 && alter_v <= 45 ~ "31-45-Jährige",
+    alter_v > 45 && alter_v <= 60  ~ "46-60-Jährige",
+    alter_v > 60 && alter_v <= 75 ~ "61-75-Jährige",
+    alter_v > 75 ~ "Über 75-Jährige"
+    ))) %>% 
+  mutate(sex_c = as.factor(case_when(
+    sex == 1 ~ "Mann",
+    sex == 2 ~ "Frau"
+  ))) %>% 
+  mutate(konfession_c = as.factor(case_when(
+    konfession %in% c(1, 2) ~ "Christliche Konfession",
+    TRUE ~ "Andere/keine Konfession"
+  ))) %>% 
+  mutate(residenz10 = as.factor(case_when(
+    aufenthaltsdaueringemeinde %in% c(1, 2, 3) ~ "0-10 Jahre",
+    TRUE ~ "Mehr als 10 Jahre"
+  ))) %>% 
+  mutate(zugezogen = as.factor(case_when(
+    Geburtsstaat == 8100 ~ "In CH geboren",
+    TRUE ~ "Zugezogen"
+  ))) %>% 
+  mutate(mEinkommen_c = as.factor(case_when(
+    massgebendesEinkommen <= 25000 ~ "0-25'000.-",
+    massgebendesEinkommen > 25000 && massgebendesEinkommen <= 55000 ~ "25'000-55'000.-",
+    massgebendesEinkommen > 55000 && massgebendesEinkommen <= 90000 ~ "55'000-90'000.-",
+    massgebendesEinkommen > 90000 ~ "Über 90'000.-"
+  ))) %>% 
+  mutate(Vermoegen_c = as.factor(case_when(
+    reinvermoegen <= 8000 ~ "0-8'000.-",
+    reinvermoegen > 8000 && reinvermoegen <= 60000 ~ "8'000-60'000.-",
+    reinvermoegen > 60000 && reinvermoegen <= 185000 ~ "60'000-185'000.-",
+    reinvermoegen > 185000 ~ "Über 185'000.-"
+  ))) %>% 
+  mutate(vote_type = as.factor(vote_type),
+         vote_type_det = as.factor(vote_type_det)) %>% 
+  ungroup() %>% 
+  mutate(vote_type =  fct_relevel(vote_type, c("never voter", "selective voter", "always voter")),
+         vote_type_det =  fct_relevel(vote_type, c("never voter","seldom voter","occasional voter","frequentl voter","always voter")),
+         alter_c = fct_relevel(alter_c, c("18-30-Jährige","31-45-Jährige","46-60-Jährige","61-75-Jährige","Über 75-Jährige")),
+         sex_c = fct_relevel(sex_c, c("Mann", "Frau")),
+         konfession_c = fct_relevel(konfession_c, c("Andere/keine Konfession", "Christliche Konfession")),
+         residenz10 = fct_relevel(residenz10, c("0-10 Jahre", "Mehr als 10 Jahre")),
+         zugezogen = fct_relevel(zugezogen, c("In CH geboren","Zugezogen")),
+         mEinkommen_c = fct_relevel(mEinkommen_c, c("0-25'000.-","25'000-55'000.-","55'000-90'000.-","Über 90'000.-")),
+         Vermoegen_c = fct_relevel(Vermoegen_c, c("0-8'000.-","8'000-60'000.-","60'000-185'000.-","Über 185'000.-")))
   

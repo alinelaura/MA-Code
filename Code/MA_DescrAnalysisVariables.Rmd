@@ -1,0 +1,46 @@
+---
+title: "Get to know Data"
+author: "Aline Laura Metzler"
+date: "2022-08-12"
+output: pdf_document
+---
+
+```{r}
+source("MA_adminDataPreparation.R", local = knitr::knit_global())
+```
+
+## Only values of city SG city have values on the tax data
+
+
+```{r}
+
+data %>% 
+  group_by(abstimmungsjahr) %>% 
+  count(is.na(steuerb_einkommen))
+
+
+p1 <- data %>% 
+  group_by(abstimmungsjahr, bfsnr) %>% 
+  count(is.na(reinvermoegen)) %>% 
+  rename(`NA Steuerdaten` = `is.na(reinvermoegen)`) %>% 
+  mutate(bfsnr = case_when(
+    bfsnr == 3203 ~ "Stadt St. Gallen",
+    bfsnr == 3231 ~ "Au (SG)",
+    bfsnr == 3237 ~ "Thal",
+    bfsnr == 3293 ~ "Mels",
+    bfsnr == 3295 ~ "Quarten",
+    bfsnr == 3338 ~ "Schmerikon",
+    bfsnr == 3359 ~ "Wildhaus-Alt St.Johann",
+    bfsnr == 3408 ~ "Uzwil",
+    bfsnr == 3443 ~ "Gossau (SG)"
+  )) %>% 
+  ggplot(aes(x=abstimmungsjahr, y=n, group=`NA Steuerdaten`, color=`NA Steuerdaten`)) +
+  geom_line() +
+  facet_wrap(~ bfsnr, ncol = 3) +
+  # scale_x_date(date_breaks = "1 year",date_labels = "%Y") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))
+p1
+
+```
+
