@@ -104,10 +104,26 @@ data_mlogit <- data_mlogit %>%
     reinvermoegen > 8000 && reinvermoegen <= 60000 ~ "8'000-60'000.-",
     reinvermoegen > 60000 && reinvermoegen <= 185000 ~ "60'000-185'000.-",
     reinvermoegen > 185000 ~ "Über 185'000.-"
-  ))
+  )) %>% 
+  mutate(vote_type = as.character(vote_type)) %>% 
+  ungroup()
   
 
 
+```
+
+### Multinomial Logit Model
+
+```{r}
+library(mlogit)
+mlogit.fit <- mlogit(vote_type ~ 0 | alter_c + sex_c + konfession_c + residenz10 + zugezogen + mEinkommen_c + Vermoegen_c,
+                          shape = "long",
+                          data = data_mlogit)
+
+# library(nnet)
+# mlogit <- multinom(vote_type ~ alter_c + sex_c + konfession_c + residenz10 + zugezogen + mEinkommen_c + Vermoegen_c,
+#                    data = data_mlogit)
+# summary(mlogit)
 ```
 
 
