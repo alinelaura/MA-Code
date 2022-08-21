@@ -8,8 +8,11 @@ library(lubridate)
 library(tidyr)
 
 
+setwd("/Users/alinelaurametzler/Documents/Universität/Master/Master Thesis/MA-Code/")
+getwd()
 # Read Data
-data_admin <- read.csv("/Users/alinelaurametzler/Documents/Universität/Master/Master Thesis/Data/IndividualdatenSTISTAT_2010-2020_5818_Lieferungsdatum-2022-04-12/IndividualdatenSTISTAT_2010-2020_5818.csv") 
+data_admin <- read.csv("./Data/IndividualdatenSTISTAT_2010-2020/IndividualdatenSTISTAT_2010-2020_pa5818_20220818.csv") 
+# data_admin_old <- read.csv("./Data/Archiv/IndividualdatenSTISTAT_2010-2020_5818.csv") 
 
 # Rename variables and format dates
 data_admin <- data_admin %>% 
@@ -28,9 +31,9 @@ data_admin <- data_admin %>%
 
 #####################  Municipalities with no tax data  #########################
 
-# For now: only SG city has tax data available
-data_admin <- data_admin %>% 
-  filter(bfsnr == 3203)
+# # For now: only SG city has tax data available
+# data_admin <- data_admin %>% 
+#   filter(bfsnr == 3203)
 
 
 ############## Account for people who moved and then moved back #################
@@ -38,12 +41,13 @@ data_admin <- data_admin %>%
 # All individuals and the years they lived in the community
 id_year <- data_admin %>% 
   select(id_ek, abstimmungsjahr, bfsnr) %>% 
-  group_by(id_ek, abstimmungsjahr) %>% 
+  group_by(id_ek, abstimmungsjahr, bfsnr) %>% 
   unique() %>% 
-  arrange(id_ek, abstimmungsjahr)
+  arrange(id_ek, abstimmungsjahr, bfsnr)
 
 
 # fill in missing years where people moved away and then moved back
+# mainly in city SG a problem where more years available
 id_year <- id_year %>% 
   group_by(id_ek) %>% 
   mutate(abstimmungsjahr = as.numeric(as.character(abstimmungsjahr))) %>% 
@@ -56,7 +60,7 @@ id_year <- id_year %>%
 id_year <- id_year %>% 
   ungroup() %>% 
   dplyr::mutate(pers_change = cumsum(c(1, diff(id_year$bfsnr) != 0))) %>% 
-  group_by(id_ek, pers_change) %>% 
+  group_by(id_ek, bfsnr, pers_change) %>% 
   dplyr::mutate(ID_move_change = cur_group_id()) %>% 
   ungroup() %>% 
   select(-pers_change) 
@@ -85,11 +89,9 @@ rm(data_admin)
 # create dummy variable for imputation
 data_imp <- data_prep %>% 
   group_by(id_ek, ID_move_change) %>% 
-  arrange(id_ek, ID_move_change, abstimmungsjahr) %>% 
-  mutate(rolle_imputed = rolle) %>% 
-  fill(rolle_imputed, .direction = "down") %>%
-  mutate(veranlagung_id_imputed = veranlagung_id) %>% 
-  fill(veranlagung_id_imputed, .direction = "down") %>%
+  arrange(id_ek, bfsnr, ID_move_change, abstimmungsjahr) %>% 
+  # mutate(veranlagung_id_imputed = veranlagung_id) %>% 
+  # fill(veranlagung_id_imputed, .direction = "down") %>%
   mutate(steuer_tarif_imputed = steuer_tarif) %>% 
   fill(steuer_tarif_imputed, .direction = "down") %>%
   mutate(anz_ki_u15_hh_imputed = anz_ki_u15_hh) %>% 
@@ -219,18 +221,26 @@ data_mlogit <- data_mlogit %>%
     alter_v > 60 && alter_v <= 75 ~ "61-75-Jährige",
     alter_v > 75 ~ "Über 75-Jährige"
     ))) %>% 
-  mutate(sex_c = as.factor(case_when(
-    sex == 1 ~ "Mann",
-    sex == 2 ~ "Frau"
-  ))) %>% 
+  # mutate(sex_c = as.factor(case_when(
+  #   sex == 1 ~ "Mann",
+  #   sex == 2 ~ "Frau"
+  # ))) %>% 
+  # mutate(konfession_c = as.factor(case_when(
+  #   konfession %in% c(1, 2) ~ "Christliche Konfession",
+  #   TRUE ~ "Andere/keine Konfession"
+  # ))) %>% 
   mutate(konfession_c = as.factor(case_when(
-    konfession %in% c(1, 2) ~ "Christliche Konfession",
+    konfession %in% c("evangelisch-reformierte Kirche", "Römisch-katholische Kirche") ~ "Christliche Konfession",
     TRUE ~ "Andere/keine Konfession"
   ))) %>% 
+  # mutate(residenz10 = as.factor(case_when(
+  #   aufenthaltsdaueringemeinde %in% c(1, 2, 3) ~ "0-10 Jahre",
+  #   TRUE ~ "Mehr als 10 Jahre"
+  # ))) %>% 
   mutate(residenz10 = as.factor(case_when(
-    aufenthaltsdaueringemeinde %in% c(1, 2, 3) ~ "0-10 Jahre",
+    aufenthaltsdaueringemeinde %in% c("höchtens 1 Jahr", "2-5 Jahre", "6-10 Jahre") ~ "0-10 Jahre",
     TRUE ~ "Mehr als 10 Jahre"
-  ))) %>% 
+  ))) %>%
   mutate(zugezogen = as.factor(case_when(
     Geburtsstaat == 8100 ~ "In CH geboren",
     TRUE ~ "Zugezogen"
@@ -253,7 +263,7 @@ data_mlogit <- data_mlogit %>%
   mutate(vote_type =  fct_relevel(vote_type, c("never voter", "selective voter", "always voter")),
          vote_type_det =  fct_relevel(vote_type, c("never voter","seldom voter","occasional voter","frequentl voter","always voter")),
          alter_c = fct_relevel(alter_c, c("18-30-Jährige","31-45-Jährige","46-60-Jährige","61-75-Jährige","Über 75-Jährige")),
-         sex_c = fct_relevel(sex_c, c("Mann", "Frau")),
+         sex = fct_relevel(sex, c("Mann", "Frau")),
          konfession_c = fct_relevel(konfession_c, c("Andere/keine Konfession", "Christliche Konfession")),
          residenz10 = fct_relevel(residenz10, c("0-10 Jahre", "Mehr als 10 Jahre")),
          zugezogen = fct_relevel(zugezogen, c("In CH geboren","Zugezogen")),

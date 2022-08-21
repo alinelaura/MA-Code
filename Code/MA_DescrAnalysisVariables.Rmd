@@ -6,7 +6,9 @@ output: pdf_document
 ---
 
 ```{r}
-source("MA_adminDataPreparation.R", local = knitr::knit_global())
+setwd("/Users/alinelaurametzler/Documents/Universität/Master/Master Thesis/MA-Code/")
+
+source("Code/MA_adminDataPreparation.R", local = knitr::knit_global())
 ```
 
 ## Only values of city SG city have values on the tax data
