@@ -33,9 +33,9 @@ source("MA_adminDataPreparation.R", local = knitr::knit_global())
 Hier folgt dann noch eine schöne Tabelle, evtl. mit Kummulierter Häufigkeit.
 
 ```{r}
-count(data_mlogit$vote_type)
+summary(data_mlogit$vote_type)
 
-count(data_mlogit$vote_type)
+summary(data_mlogit$vote_type_det)
 ```
 
 
