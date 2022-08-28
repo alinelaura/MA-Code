@@ -43,7 +43,7 @@ swissvotes <- swissvotes %>%
 # keep the vote per day with the highest turnout (if multiple votes have the same turnout then filter later by mean perceived relevance)
 swissvotes_short <- swissvotes %>% 
   group_by(datum) %>% 
-  filter(sg.bet == max(sg.bet)) %>% 
+  # filter(sg.bet == max(sg.bet)) %>% 
   filter(datum >= "2010-01-01" & datum <= "2021-01-01") 
   
 
@@ -52,30 +52,28 @@ write_csv(swissvotes, "./Data/swissvotes/swissvotes.csv")
 
 
 ######################## Analyse der Nachbefragungsdaten #########################
-
 library(haven)
 
 ## Voxit: 2010-2016
 # Voxit: Standardisierter Datensatz für alle Vorlagen zwischen 1977 und 2016
 voxit_20102016 <- haven::read_dta("./Data/VOX_Voto/VOX/689_VoxIt_Data_CumulatedFile_Vorlagen_15_121_D.dta")
 # voxit_termine <- haven::read_dta("./Data/VOX_Voto/VOX/689_VoxIt_Data_CumulatedFile_Abstimmungstermine_15_121_D.dta")
-voxit_codes <- read.csv("./Data/VOX_Voto/VOX/VorlagenCodes.csv", sep = ';') %>% 
-  mutate(projetx = as.double(Code)) %>% 
-  na.omit
 
 # Empfundene Relevanz & Komplexität
 # zwischen 2010 und 2020 können dazu die aggregierten,repräsentativen Umfragewerte für deutschsprechende Stimmberechtigte abgerufen werde
 voxit_20102016 <- voxit_20102016 %>% 
   mutate(datum = ymd(paste(annee, mois, jour, sep = "-"))) %>% 
-  select(datum, jour, mois, annee, themex, projetx, typex, scrutin, id, canton, regiling, agglomer, impactx, a81, a82x, a83, a84x,  a88x, a89x) %>% 
-  filter(annee >= 2010) 
-
-
-# join mit codes
-voxit_20102016 <- voxit_20102016 %>% 
-  left_join(voxit_codes, by = "projetx")
-
-rm(voxit_codes)
+  select(datum, jour, mois, annee, projetx, id, canton, regiling, regeco, a84x,  a89x) %>% 
+  filter(annee >= 2010) %>% 
+  mutate(source = "voxit",
+         mois = as.character(mois),
+         canton = as.character(canton),
+         regiling = as.character(regiling)) %>% 
+  rename(vote_nr = projetx,
+         langreg = regiling,
+         reg = regeco,
+         difficulty = a84x,
+         importance = a89x)
 
 
 ## Voto: 2016-2020
@@ -93,37 +91,120 @@ for (i in 1:length(files)) { # for each file in the list
   assign (dataName, tempData, envir=.GlobalEnv)
 }
 
-# Select and prepare variables
+rm(tempData, names)
+
+# voto_826$importance: Personal importance of voting proposal
+# Reden wir jetzt davon, wie wichtig die Vorlagen vom
+# [DATE] für Sie persönlich gewesen sind.
+# Sagen Sie mir bitte jeweils eine Zahl zwischen 0 und 10.
+# 0 bedeutet überhaupt nicht wichtig, 10 bedeutet sehr wichtig.
+
+# voxit$a89x: Bedeutung der Vorlage für mich persönlich
+# «Sprechen wir jetzt von der Bedeutung, welche diese Abstimmung 
+# für Sie persönlich hatte. Sagen Sie mir bitte anhand derselben 
+# Karte, welche Bedeutung für Sie persönlich die Abstimmung über 
+# die TITLE VOTE hatte? Nennen Sie mir eine Zahl zwischen 0 und 10. 
+# 0 bedeutet überhaupt keine Bedeutung, 10 sehr grosse Bedeutung.»
+
+
+# voto_826$difficult: Difficulty with understanding
+# Ist es Ihnen bei der/beim TITLE VOTING PROPOSAL
+# eher leicht oder eher schwer gefallen zu verstehen,
+# um was es gegangen ist?
+
+# voxit$a84x: Schwierigkeit sich eine Meinung zu bilden (zur Vorlage)
+
+
+# Select and prepare variable
 prep_voto_data <- function(name, day, month, year){
   name %>% 
     mutate(jour = day,
            mois = month,
            annee = year,
            datum = ymd(paste(annee, mois, jour, sep = "-"))) %>% 
-    select(datum, jour, mois, annee, personid_4, reportingcanton, bigregion, starts_with("importance"))
+    mutate(langreg = ifelse("communelanguage" %in% names(name) == TRUE, communelanguage, NA)) %>% 
+    select(datum, jour, mois, annee, personid_4, reportingcanton, bigregion, langreg, starts_with("importance"), starts_with("difficul")) %>% 
+    mutate(reportingcanton = as.character(reportingcanton)) %>% 
+    mutate(across(starts_with("importance"), as.character)) %>% 
+    mutate(across(starts_with("difficul"), as.character)) %>% 
+    gather(vote, value, -datum, -jour, -mois, -annee, -personid_4, -reportingcanton, -bigregion, -langreg) %>% 
+    mutate(vote_nr = case_when(
+      vote == "importance1" ~ 1,
+      vote == "importance2" ~ 2,
+      vote == "importance3" ~ 3,
+      vote == "importance4" ~ 4,
+      vote == "importance5" ~ 5,
+      vote == "importance_1" ~ 1,
+      vote == "importance_2" ~ 2,
+      vote == "importance_3" ~ 3,
+      vote == "importance_4" ~ 4,
+      vote == "importance_5" ~ 5,
+      vote == "difficul1" ~ 1,
+      vote == "difficul2" ~ 2,
+      vote == "difficul3" ~ 3,
+      vote == "difficul4" ~ 4,
+      vote == "difficul5" ~ 5
+    )) %>%
+    mutate(var = case_when(
+      grepl("importance", vote) ~ "importance",
+      grepl("difficul", vote) ~ "difficulty"
+    )) %>% 
+    rename(id = personid_4,
+           canton = reportingcanton,
+           reg = bigregion) %>% 
+    select(datum, jour, mois, annee, vote_nr, id, canton, langreg, reg, var, value) %>% 
+    spread(var, value) %>% 
+    mutate(source = "voto",
+           langreg = as.character(langreg),
+           difficulty = as.double(difficulty),
+           importance = as.double(importance))
 }
 
-voto_826 <- prep_voto_data(swissubase_826_5_0, "25", "September", "2016")
-voto_826 <- prep_voto_data(swissubase_839_3_0, "27", "November", "2016")
-voto_826 <- prep_voto_data(swissubase_851_3_0, "12", "Februar", "2017")
-voto_826 <- prep_voto_data(swissubase_855_3_0, "21", "Mai", "2017")
-voto_826 <- prep_voto_data(swissubase_872_2_0, "24", "September", "2017")
-voto_826 <- prep_voto_data(swissubase_921_1_0, "4", "März", "2018")
-voto_826 <- prep_voto_data(swissubase_938_1_0, "10", "Juni", "2018")
-voto_826 <- prep_voto_data(swissubase_948_1_0, "23", "September", "2018")
-voto_826 <- prep_voto_data(swissubase_957_1_0, "25", "November", "2018")
-voto_826 <- prep_voto_data(swissubase_972_1_0, "10", "Februar", "2019")
-voto_826 <- prep_voto_data(swissubase_1072_1_0, "19", "Mai", "2019")
-voto_826 <- prep_voto_data(swissubase_1151_1_0, "9", "Februar", "2020")
-voto_826 <- prep_voto_data(swissubase_1225_2_0, "27", "September", "2020")
+       
+         
+voto_826 <- prep_voto_data(swissubase_826_5_0, 25, "September", 2016)
+voto_839 <- prep_voto_data(swissubase_839_3_0, 27, "November", 2016)
+voto_851 <- prep_voto_data(swissubase_851_3_0, 12, "Februar", 2017)
+voto_855 <- prep_voto_data(swissubase_855_3_0, 21, "Mai", 2017)
+voto_872 <- prep_voto_data(swissubase_872_2_0, 24, "September", 2017)
+voto_921 <- prep_voto_data(swissubase_921_1_0, 4, "März", 2018)
+voto_938 <- prep_voto_data(swissubase_938_1_0, 10, "Juni", 2018)
+voto_948 <- prep_voto_data(swissubase_948_1_0, 23, "September", 2018)
+voto_957 <- prep_voto_data(swissubase_957_1_0, 25, "November", 2018)
+voto_972 <- prep_voto_data(swissubase_972_1_0, 10, "Februar", 2019)
+voto_1072 <- prep_voto_data(swissubase_1072_1_0, 19, "Mai", 2019)
+voto_1151 <- prep_voto_data(swissubase_1151_1_0, 9, "Februar", 2020)
+voto_1225 <- prep_voto_data(swissubase_1225_2_0, 27, "September", 2020)
 
 rm(swissubase_826_5_0, swissubase_839_3_0, swissubase_851_3_0, swissubase_855_3_0,
    swissubase_872_2_0, swissubase_921_1_0, swissubase_938_1_0, swissubase_948_1_0,
    swissubase_957_1_0, swissubase_972_1_0, swissubase_1072_1_0, swissubase_1151_1_0,
    swissubase_1225_2_0)
 
+voto_20162020 <- voto_826 %>% 
+  bind_rows(voto_839, voto_851, voto_855, voto_872, voto_921, voto_938,
+            voto_948, voto_957, voto_972, voto_1072, voto_1151, voto_1225)
 
-# voto_826$importance: Personal importance of voting proposal
-# voxit$a89x: Bedeutung der Vorlage für mich persönlich
+rm(voto_826, voto_839, voto_851, voto_855, voto_872, voto_921, voto_938, 
+   voto_948, voto_957, voto_972, voto_1072, voto_1151, voto_1225)
+
+
+## Join Voxit & Voto dfs
+vote_survey_data <- voxit_20102016 %>% 
+  bind_rows(voto_20162020)
+
+# Join with Code key of swissvotes and Voxit/voto
+codes_key <- read.csv("./Data/codes_swissvotes_vox_voto.csv", sep = ";") %>% 
+  mutate(datum = ymd(datum)) %>% 
+  select(-titel_kurz_d)
+
+vote_survey_data <- vote_survey_data %>% 
+  left_join(codes_key, by = c("vote_nr", "datum"))
+
+
+## Aggregate data to one vote per date
+vote_survey_data <- vote_survey_data %>% 
+  
 
 ############################ Join Voxit & Swissvotes ###########################
+vote_data <- 
