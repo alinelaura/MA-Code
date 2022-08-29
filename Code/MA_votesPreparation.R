@@ -213,7 +213,7 @@ vote_survey_data <- voxit_20102016 %>%
   bind_rows(voto_20162020)
 
 # Join with Code key of swissvotes and Voxit/voto
-codes_key <- read.csv("./Data/codes_swissvotes_vox_voto.csv", sep = ";") %>% 
+codes_key <- read.csv("./Data/VOX_Voto/codes_swissvotes_vox_voto.csv", sep = ";") %>% 
   mutate(datum = ymd(datum)) %>% 
   select(-titel_kurz_d)
 
