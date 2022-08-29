@@ -40,12 +40,11 @@ swissvotes <- swissvotes %>%
          bet, volkja.proz
          )
 
-# keep the vote per day with the highest turnout (if multiple votes have the same turnout then filter later by mean perceived relevance)
-swissvotes_short <- swissvotes %>% 
-  group_by(datum) %>% 
-  # filter(sg.bet == max(sg.bet)) %>% 
+# only keep relevant years
+swissvotes <- swissvotes %>% 
   filter(datum >= "2010-01-01" & datum <= "2021-01-01") 
   
+rm(labels)
 
 # Write csv for analysis
 write_csv(swissvotes, "./Data/swissvotes/swissvotes.csv")
@@ -73,7 +72,18 @@ voxit_20102016 <- voxit_20102016 %>%
          langreg = regiling,
          reg = regeco,
          difficulty = a84x,
-         importance = a89x)
+         importance = a89x) %>% 
+  # Only respondents from German speaking part of Switzerland
+  filter(langreg == "1") %>% 
+  # TODO: Voxit doesn't have any weights? How aggregate data then?
+  group_by(datum, jour, mois, annee, vote_nr) %>% 
+  summarize(difficulty = mean(difficulty, na.rm=TRUE),
+            importance = mean(importance, na.rm=TRUE)) %>% 
+  ungroup() %>% 
+  # Z-Standardization for later Join with voto
+  mutate(difficulty = (difficulty - mean(difficulty))/sd(difficulty),
+         importance = (importance - mean(importance))/sd(importance))
+
 
 
 ## Voto: 2016-2020
@@ -123,11 +133,12 @@ prep_voto_data <- function(name, day, month, year){
            annee = year,
            datum = ymd(paste(annee, mois, jour, sep = "-"))) %>% 
     mutate(langreg = ifelse("communelanguage" %in% names(name) == TRUE, communelanguage, NA)) %>% 
-    select(datum, jour, mois, annee, personid_4, reportingcanton, bigregion, langreg, starts_with("importance"), starts_with("difficul")) %>% 
+    mutate(weight = ifelse("w_dtccpv" %in% names(name) == TRUE, w_dtccpv, 1)) %>% # only round 826 has weights?! 
+    select(datum, jour, mois, annee, personid_4, weight, reportingcanton, bigregion, langreg, starts_with("importance"), starts_with("difficul")) %>% 
     mutate(reportingcanton = as.character(reportingcanton)) %>% 
     mutate(across(starts_with("importance"), as.character)) %>% 
     mutate(across(starts_with("difficul"), as.character)) %>% 
-    gather(vote, value, -datum, -jour, -mois, -annee, -personid_4, -reportingcanton, -bigregion, -langreg) %>% 
+    gather(vote, value, -datum, -jour, -mois, -annee, -personid_4, -weight, -reportingcanton, -bigregion, -langreg) %>% 
     mutate(vote_nr = case_when(
       vote == "importance1" ~ 1,
       vote == "importance2" ~ 2,
@@ -152,12 +163,17 @@ prep_voto_data <- function(name, day, month, year){
     rename(id = personid_4,
            canton = reportingcanton,
            reg = bigregion) %>% 
-    select(datum, jour, mois, annee, vote_nr, id, canton, langreg, reg, var, value) %>% 
+    select(datum, jour, mois, annee, vote_nr, id, weight, canton, langreg, reg, var, value) %>% 
     spread(var, value) %>% 
     mutate(source = "voto",
            langreg = as.character(langreg),
            difficulty = as.double(difficulty),
-           importance = as.double(importance))
+           importance = as.double(importance)) %>% 
+    # Aggregate difficulty and importance per vote
+    group_by(datum, jour, mois, annee, vote_nr) %>% 
+    summarize(difficulty = weighted.mean(difficulty, weight, na.rm=TRUE),
+              importance = weighted.mean(importance, weight, na.rm=TRUE)) %>% 
+    ungroup()
 }
 
        
@@ -183,7 +199,10 @@ rm(swissubase_826_5_0, swissubase_839_3_0, swissubase_851_3_0, swissubase_855_3_
 
 voto_20162020 <- voto_826 %>% 
   bind_rows(voto_839, voto_851, voto_855, voto_872, voto_921, voto_938,
-            voto_948, voto_957, voto_972, voto_1072, voto_1151, voto_1225)
+            voto_948, voto_957, voto_972, voto_1072, voto_1151, voto_1225) %>% 
+  # Z-Standardization for later Join with voto
+  mutate(difficulty = (difficulty - mean(difficulty))/sd(difficulty),
+         importance = (importance - mean(importance))/sd(importance))
 
 rm(voto_826, voto_839, voto_851, voto_855, voto_872, voto_921, voto_938, 
    voto_948, voto_957, voto_972, voto_1072, voto_1151, voto_1225)
@@ -200,11 +219,22 @@ codes_key <- read.csv("./Data/codes_swissvotes_vox_voto.csv", sep = ";") %>%
 
 vote_survey_data <- vote_survey_data %>% 
   left_join(codes_key, by = c("vote_nr", "datum"))
-
-
-## Aggregate data to one vote per date
-vote_survey_data <- vote_survey_data %>% 
   
-
+rm(codes_key)
 ############################ Join Voxit & Swissvotes ###########################
-vote_data <- 
+
+# Join Voxit/Voto Data with swissvotes
+votes_data <- swissvotes %>% 
+  left_join(vote_survey_data, by = c("anr", "datum"))
+
+
+# keep the vote per day with the highest turnout (if multiple votes have the 
+# same turnout then filter later by mean perceived relevance)
+votes_data_short <- votes_data %>% 
+  group_by(datum) %>% 
+  filter(sg.bet == max(sg.bet)) %>% 
+  filter(importance == max(importance))
+
+# Write csv for analysis
+write_csv(votes_data, "./Data/PreparedData/votes_data.csv")
+write_csv(votes_data_short, "./Data/PreparedData/votes_data_short.csv")
