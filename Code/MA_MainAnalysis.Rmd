@@ -26,7 +26,7 @@ library(forcats)
 Data is read and prepared in separate file. The variable for the type of voter is created by filtering individuals that lived in the same community for at least ten consecutive votes. For each individeual the 10 most recent votes were selected. This allows for the classification of these individuals into "never voters" (0-1 participation), "selective voters" (2-8 participation) and "always voters" (9-10 participation). 
 
 ```{r}
-source("MA_adminDataPreparation.R", local = knitr::knit_global())
+# source("MA_adminDataPreparation.R", local = knitr::knit_global())
 ```
 
 ### Distribution of voter types

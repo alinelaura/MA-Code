@@ -77,8 +77,20 @@ voxit_20102016 <- voxit_20102016 %>%
   filter(langreg == "1") %>% 
   # TODO: Voxit doesn't have any weights? How aggregate data then?
   group_by(datum, jour, mois, annee, vote_nr) %>% 
-  summarize(difficulty = mean(difficulty, na.rm=TRUE),
-            importance = mean(importance, na.rm=TRUE)) %>% 
+  mutate(schwer = case_when(
+    difficulty == 1 ~ 1,
+    TRUE ~ 0
+  )) %>% 
+  mutate(alle = case_when(
+    difficulty == 1 ~ 1,
+    difficulty == 2 ~ 1,
+    TRUE ~ 0
+  )) %>% 
+  summarize(sum_schwer = sum(schwer, na.rm=TRUE),
+            sum_alle = sum(alle, na.rm=TRUE),
+            difficulty = (sum_schwer/sum_alle)*100, # Share of people who found it difficult
+            importance = mean(importance, na.rm=TRUE)) %>% # Mean of importance level (0-10)
+  select(-sum_schwer, -sum_alle) %>% 
   ungroup() %>% 
   # Z-Standardization for later Join with voto
   mutate(difficulty = (difficulty - mean(difficulty))/sd(difficulty),
@@ -168,11 +180,33 @@ prep_voto_data <- function(name, day, month, year){
     mutate(source = "voto",
            langreg = as.character(langreg),
            difficulty = as.double(difficulty),
-           importance = as.double(importance)) %>% 
+           importance = as.double(importance)) %>%
+    mutate(difficulty = case_when(
+      difficulty == 8 ~ NA_real_,
+      difficulty == 9 ~ NA_real_,
+      TRUE ~ difficulty
+    )) %>% 
+    mutate(importance = case_when(
+      importance == 98 ~ NA_real_,
+      importance == 99 ~ NA_real_,
+      TRUE ~ importance
+    )) %>% 
     # Aggregate difficulty and importance per vote
     group_by(datum, jour, mois, annee, vote_nr) %>% 
-    summarize(difficulty = weighted.mean(difficulty, weight, na.rm=TRUE),
-              importance = weighted.mean(importance, weight, na.rm=TRUE)) %>% 
+    mutate(schwer = case_when(
+      difficulty == 2 ~ 1,
+      TRUE ~ 0
+    )) %>% 
+    mutate(alle = case_when(
+      difficulty == 1 ~ 1,
+      difficulty == 2 ~ 1,
+      TRUE ~ 0
+    )) %>% 
+    summarize(sum_schwer = sum(schwer, na.rm=TRUE),
+              sum_alle = sum(alle, na.rm=TRUE),
+              difficulty = (sum_schwer/sum_alle)*100, # Share of people who found it difficult
+              importance = mean(importance, na.rm=TRUE)) %>% # Mean of importance level (0-10)
+    select(-sum_schwer, -sum_alle) %>% 
     ungroup()
 }
 
