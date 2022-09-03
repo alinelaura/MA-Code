@@ -16,6 +16,7 @@ library(ggplot2)
 library(tidyverse)
 library(dplyr)
 library(forcats)
+library(ggplot2)
 ```
 
 # Masterarbeit Script
@@ -23,9 +24,39 @@ library(forcats)
 
 ## Deskriptive Analysis
 
-Data is read and prepared in separate file. The variable for the type of voter is created by filtering individuals that lived in the same community for at least ten consecutive votes. For each individeual the 10 most recent votes were selected. This allows for the classification of these individuals into "never voters" (0-1 participation), "selective voters" (2-8 participation) and "always voters" (9-10 participation). 
+Data is read and prepared in separate file. The variable for the type of voter is created by filtering individuals that lived in the same community for at least ten consecutive votes. For each individual the 10 most recent votes were selected. This allows for the classification of these individuals into "never voters" (0-1 participation), "selective voters" (2-8 participation) and "always voters" (9-10 participation). 
 
 ```{r}
+setwd("/Users/alinelaurametzler/Documents/Universität/Master/Master Thesis/MA-Code/")
+data <- read.csv("/Users/alinelaurametzler/Documents/Universität/Master/Master Thesis/MA-Code/Data/PreparedData/data.csv", encoding = "UTF-8")
+data_mlogit <- read.csv("/Users/alinelaurametzler/Documents/Universität/Master/Master Thesis/MA-Code/Data/PreparedData/data_mlogit.csv", encoding = "UTF-8") %>% 
+  mutate(vote_type = as.factor(vote_type),
+         vote_type_det = as.factor(vote_type_det)) %>%
+  mutate(vote_type =  fct_relevel(vote_type, c("never voter", "selective voter", "always voter")),
+         vote_type_det =  fct_relevel(vote_type_det, c("never voter","seldom voter","occasional voter","frequent voter","always voter"))) %>% 
+   mutate(alter_c = fct_relevel(alter_c, c("18-30-Jährige","31-45-Jährige","46-60-Jährige","61-75-Jährige","Über 75-Jährige")),
+         sex = fct_relevel(sex, c("Mann", "Frau")),
+         konfession_c = fct_relevel(konfession_c, c("Andere/keine Konfession", "Christliche Konfession")),
+         residenz10 = fct_relevel(residenz10, c("0-10 Jahre", "Mehr als 10 Jahre")),
+         zugezogen = fct_relevel(zugezogen, c("In CH geboren","CH zugezogen")),
+         mEinkommen_c = fct_relevel(mEinkommen_c, c("0-25'000.-","25'000-55'000.-","55'000-90'000.-","Über 90'000.-")),
+         Vermoegen_c = fct_relevel(Vermoegen_c, c("0-8'000.-","8'000-60'000.-","60'000-185'000.-","Über 185'000.-")))
+
+
+data_mlogit15 <- read.csv("/Users/alinelaurametzler/Documents/Universität/Master/Master Thesis/MA-Code/Data/PreparedData/data_mlogit15.csv", encoding = "UTF-8")%>% 
+  mutate(vote_type = as.factor(vote_type),
+         vote_type_det = as.factor(vote_type_det)) %>%
+  mutate(vote_type =  fct_relevel(vote_type, c("never voter", "selective voter", "always voter")),
+         vote_type_det =  fct_relevel(vote_type_det, c("never voter","seldom voter","occasional voter","frequent voter","always voter"))) %>% 
+   mutate(alter_c = fct_relevel(alter_c, c("18-30-Jährige","31-45-Jährige","46-60-Jährige","61-75-Jährige","Über 75-Jährige")),
+         sex = fct_relevel(sex, c("Mann", "Frau")),
+         konfession_c = fct_relevel(konfession_c, c("Andere/keine Konfession", "Christliche Konfession")),
+         residenz10 = fct_relevel(residenz10, c("0-10 Jahre", "Mehr als 10 Jahre")),
+         zugezogen = fct_relevel(zugezogen, c("In CH geboren","CH zugezogen")),
+         mEinkommen_c = fct_relevel(mEinkommen_c, c("0-25'000.-","25'000-55'000.-","55'000-90'000.-","Über 90'000.-")),
+         Vermoegen_c = fct_relevel(Vermoegen_c, c("0-8'000.-","8'000-60'000.-","60'000-185'000.-","Über 185'000.-")))
+
+
 # source("MA_adminDataPreparation.R", local = knitr::knit_global())
 ```
 
@@ -38,9 +69,63 @@ summary(data_mlogit$vote_type)
 summary(data_mlogit$vote_type_det)
 ```
 
+### Scatter Plot Einkommen und Anz. Teilnahmen bei 10 Abstimmungen
+
+H1A/B
+
+```{r}
+summary(data_mlogit$massgebendesEinkommen_imputed)
+summary(data_mlogit$anz_teilnahme)
+
+
+plot_scatter <- data_mlogit %>% 
+  mutate(massgebendesEinkommen_imputed = case_when(
+    massgebendesEinkommen_imputed < 0 ~ 0,
+    TRUE ~ massgebendesEinkommen_imputed
+  )) %>% 
+  ggplot(aes(x = massgebendesEinkommen_imputed, y = anz_teilnahme)) +
+  # geom_bin2d(bins = 10)
+  geom_point() +
+  geom_jitter() +
+  geom_smooth() +
+  theme_minimal()
+plot_scatter
+
+plot_scatter_age <- data_mlogit %>% 
+  filter(!is.na(alter_c)) %>% 
+  mutate(massgebendesEinkommen_imputed = case_when(
+    massgebendesEinkommen_imputed < 0 ~ 0,
+    TRUE ~ massgebendesEinkommen_imputed
+  )) %>% 
+  ggplot(aes(x = massgebendesEinkommen_imputed, y = anz_teilnahme)) +
+  geom_point() +
+  geom_jitter() +
+  geom_smooth() +
+  facet_wrap(~ alter_c) +
+  theme_minimal()
+plot_scatter_age
+
+plot_scatter_sex <- data_mlogit %>% 
+  filter(!is.na(sex_c)) %>% 
+  mutate(massgebendesEinkommen_imputed = case_when(
+    massgebendesEinkommen_imputed < 0 ~ 0,
+    TRUE ~ massgebendesEinkommen_imputed
+  )) %>% 
+  ggplot(aes(x = massgebendesEinkommen_imputed, y = anz_teilnahme)) +
+  geom_point() +
+  geom_jitter() +
+  geom_smooth() +
+  facet_wrap(~ sex_c) +
+  theme_minimal()
+plot_scatter_sex
+
+
+```
 
 ### Multinomial Logit Model
 Was ist der Unterschied zwischen mlogit() und multinom()? Weshalb funktioniert mlogit() nicht und multinom() schon?
+
+H1.1A/B
 
 ```{r}
 # library(mlogit)
@@ -70,7 +155,81 @@ stargazer(mlogit, type = "text")
 
 ```{r}
 mlogit_det <- multinom(vote_type_det ~ alter_c + sex_c + konfession_c + residenz10 + zugezogen + mEinkommen_c + Vermoegen_c,
-                   data = data_mlogit)
+                   data = data_mlogit15)
 stargazer(mlogit_det, type = "text")
+```
+
+### Effect of age on political participation for different income quartiles
+
+```{r}
+plot_scatter_ageincome <- data_mlogit %>% 
+  filter(!is.na(mEinkommen_c)) %>% 
+  mutate(massgebendesEinkommen_imputed = case_when(
+    massgebendesEinkommen_imputed < 0 ~ 0,
+    TRUE ~ massgebendesEinkommen_imputed
+  )) %>% 
+  ggplot(aes(x = alter_v, y = anz_teilnahme)) +
+  geom_point() +
+  geom_jitter() +
+  geom_smooth() +
+  facet_wrap(~ mEinkommen_c) +
+  theme_minimal()
+plot_scatter_ageincome
+
+
+plot_scatter_agevermoegen <- data_mlogit %>% 
+  filter(!is.na(mEinkommen_c)) %>% 
+  mutate(massgebendesEinkommen_imputed = case_when(
+    massgebendesEinkommen_imputed < 0 ~ 0,
+    TRUE ~ massgebendesEinkommen_imputed
+  )) %>% 
+  ggplot(aes(x = alter_v, y = anz_teilnahme)) +
+  # geom_point() +
+  # geom_jitter() +
+  geom_smooth() +
+  facet_wrap(~ Vermoegen_c) +
+  theme_minimal()
+plot_scatter_agevermoegen
+```
+
+### Effect of jumps in income/wealth
+
+Identify the jumps
+
+->Since we only have income per year -->participation as share (sum(partic)/sum(all_votes))
+-->then look for jumps in yearly income
+-->compare share of participation before and after
+
+```{r}
+data_year <- data %>% 
+  mutate(anz_teilnahme = case_when(
+    beteiligt == "mit Stimmbeteiligung" ~ 1,
+    TRUE ~ 0
+  )) %>% 
+  mutate(anz_abstimmungen = case_when(
+    beteiligt == "mit Stimmbeteiligung" ~ 1,
+    beteiligt == "keine Stimmbeteiligung" ~ 1
+  )) %>% 
+  group_by(id_ek, abstimmungsjahr) %>%
+  summarise(anz_teilnahme = sum(anz_teilnahme),
+            anz_abstimmungen = sum(anz_abstimmungen),
+            share_teilnahme = anz_teilnahme/anz_abstimmungen,
+            sex = last(sex_imp),
+            alter = mean(alter_v, na.rm=TRUE),
+            konfession = last(konfession_imp),
+            residenz = mean(residenz_imp, na.rm=TRUE),
+            zugezogen = last(zugezogen),
+            einkommen = mean(massgebendesEinkommen_imputed, na.rm=TRUE),
+            vermoegen = mean(reinvermoegen_imputed, na.rm=TRUE)
+            ) %>% 
+  distinct() %>% 
+  ungroup() %>% 
+  group_by(id_ek) %>% 
+  mutate(flag = (lag(einkommen) >= 2*lag(einkommen, 2) | lag(einkommen) <= 
+                   0.5*lag(einkommen, 2)) & abs(1 - einkommen/(lag(einkommen, 2))) < 0.25) %>%
+  mutate(flag = coalesce(flag, FALSE))
+  
+  
+ 
 ```
 

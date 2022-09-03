@@ -7,7 +7,9 @@ output: pdf_document
 
 ```{r}
 setwd("/Users/alinelaurametzler/Documents/Universität/Master/Master Thesis/MA-Code/")
-
+data <- read.csv("/Users/alinelaurametzler/Documents/Universität/Master/Master Thesis/MA-Code/Data/PreparedData/data.csv", encoding = "UTF-8")
+data_mlogit <- read.csv("/Users/alinelaurametzler/Documents/Universität/Master/Master Thesis/MA-Code/Data/PreparedData/data_mlogit.csv", encoding = "UTF-8")
+data_mlogit15 <- read.csv("/Users/alinelaurametzler/Documents/Universität/Master/Master Thesis/MA-Code/Data/PreparedData/data_mlogit15.csv", encoding = "UTF-8")
 # source("Code/MA_adminDataPreparation.R", local = knitr::knit_global())
 ```
 
@@ -44,5 +46,72 @@ p1 <- data %>%
   theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))
 p1
 
+```
+
+### show development of income and wealth over time by munucipalty
+
+```{r}
+p2.1 <- data %>% 
+  group_by(id_ek, abstimmungsjahr) %>%
+  summarise(einkommen = mean(massgebendesEinkommen_imputed, na.rm=TRUE),
+            vermoegen = mean(reinvermoegen_imputed, na.rm=TRUE)) %>% 
+  select(abstimmungsjahr, bfsnr, massgebendesEinkommen_imputed, reinvermoegen_imputed) %>% 
+  distinct() %>% 
+  ungroup() %>% 
+  group_by(abstimmungsjahr, bfsnr) %>% 
+  mutate(Median = median(einkommen, na.rm = TRUE),
+         Mean = mean(vermoegen, na.rm=TRUE)) %>% 
+  select(abstimmungsjahr, bfsnr, Median, Mean) %>% 
+  distinct() %>% 
+  gather(key,value, Median, Mean) %>% 
+  mutate(bfsnr = case_when(
+    bfsnr == 3203 ~ "Stadt St. Gallen",
+    bfsnr == 3231 ~ "Au (SG)",
+    bfsnr == 3237 ~ "Thal",
+    bfsnr == 3293 ~ "Mels",
+    bfsnr == 3295 ~ "Quarten",
+    bfsnr == 3338 ~ "Schmerikon",
+    bfsnr == 3359 ~ "Wildhaus-Alt St.Johann",
+    bfsnr == 3408 ~ "Uzwil",
+    bfsnr == 3443 ~ "Gossau (SG)"
+  )) %>% 
+  ggplot() +
+  geom_line(aes(x=abstimmungsjahr, y=value, group = key, color = key)) +
+  facet_wrap(~ bfsnr, ncol = 3) +
+  # scale_x_date(date_breaks = "1 year",date_labels = "%Y") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))
+p2.1
+p2.2 <- data %>% 
+  group_by(id_ek, abstimmungsjahr) %>%
+  summarise(einkommen = mean(massgebendesEinkommen_imputed, na.rm=TRUE),
+            vermoegen = mean(reinvermoegen_imputed, na.rm=TRUE)) %>% 
+  select(abstimmungsjahr, bfsnr, massgebendesEinkommen_imputed, reinvermoegen_imputed) %>% 
+  distinct() %>% 
+  ungroup() %>% 
+  group_by(abstimmungsjahr, bfsnr) %>% 
+  mutate(Median = median(reinvermoegen_imputed, na.rm = TRUE),
+         Mean = mean(reinvermoegen_imputed, na.rm=TRUE)) %>% 
+  select(abstimmungsjahr, bfsnr, Median, Mean) %>% 
+  distinct() %>% 
+  gather(key,value, Median, Mean) %>% 
+  mutate(bfsnr = case_when(
+    bfsnr == 3203 ~ "Stadt St. Gallen",
+    bfsnr == 3231 ~ "Au (SG)",
+    bfsnr == 3237 ~ "Thal",
+    bfsnr == 3293 ~ "Mels",
+    bfsnr == 3295 ~ "Quarten",
+    bfsnr == 3338 ~ "Schmerikon",
+    bfsnr == 3359 ~ "Wildhaus-Alt St.Johann",
+    bfsnr == 3408 ~ "Uzwil",
+    bfsnr == 3443 ~ "Gossau (SG)"
+  )) %>% 
+  ggplot() +
+  geom_line(aes(x=abstimmungsjahr, y=value, group = key, color = key)) +
+  facet_wrap(~ bfsnr, ncol = 3) +
+  # scale_x_date(date_breaks = "1 year",date_labels = "%Y") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))
+p2.2
 ```
 
