@@ -22,7 +22,7 @@ data_admin <- data_admin %>%
          anz_ki_u15_hh=ziffer_18,
          steuer_tarif=ziffer_10
   ) %>%
-  mutate(abstimmungsdatum = as.Date(abstimmungsdatum, "%d.%m.%Y"),
+  mutate(datum = as.Date(abstimmungsdatum, "%m/%d/%Y"),
          abstimmungsjahr = as.integer(abstimmungsjahr),
          abstimmungsmonat = as.integer(abstimmungsmonat)) %>% 
   mutate(steuer_tarif = as.factor(steuer_tarif)) %>% 

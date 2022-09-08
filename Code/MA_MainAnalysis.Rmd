@@ -28,7 +28,17 @@ Data is read and prepared in separate file. The variable for the type of voter i
 
 ```{r}
 setwd("/Users/alinelaurametzler/Documents/Universität/Master/Master Thesis/MA-Code/")
-data <- read.csv("/Users/alinelaurametzler/Documents/Universität/Master/Master Thesis/MA-Code/Data/PreparedData/data.csv", encoding = "UTF-8")
+data <- read.csv("/Users/alinelaurametzler/Documents/Universität/Master/Master Thesis/MA-Code/Data/PreparedData/data.csv", encoding = "UTF-8") %>% 
+  mutate(beteiligt = as.factor(beteiligt)) %>%
+  mutate(beteiligt = fct_relevel(beteiligt, c("keine Stimmbeteiligung", "mit Stimmbeteiligung"))) %>% 
+   mutate(alter_c = fct_relevel(alter_c, c("18-30-Jährige","31-45-Jährige","46-60-Jährige","61-75-Jährige","Über 75-Jährige")),
+         sex = fct_relevel(sex, c("Mann", "Frau")),
+         konfession_c = fct_relevel(konfession_c, c("Andere/keine Konfession", "Christliche Konfession")),
+         residenz10 = fct_relevel(residenz10, c("0-10 Jahre", "Mehr als 10 Jahre")),
+         zugezogen = fct_relevel(zugezogen, c("In CH geboren","CH zugezogen")),
+         mEinkommen_c = fct_relevel(mEinkommen_c, c("0-25'000.-","25'000-55'000.-","55'000-90'000.-","Über 90'000.-")),
+         Vermoegen_c = fct_relevel(Vermoegen_c, c("0-8'000.-","8'000-60'000.-","60'000-185'000.-","Über 185'000.-")))
+
 data_mlogit <- read.csv("/Users/alinelaurametzler/Documents/Universität/Master/Master Thesis/MA-Code/Data/PreparedData/data_mlogit.csv", encoding = "UTF-8") %>% 
   mutate(vote_type = as.factor(vote_type),
          vote_type_det = as.factor(vote_type_det)) %>%
@@ -274,39 +284,45 @@ data_year <- data_year %>%
   # for multiple income/wealth shocks only take first one
   group_by(id_ek) %>%
   mutate(inc_change = as.numeric(rle(treat_less50income)$lengths %>% {rep(seq(length(.)), .)})) %>% 
+  mutate(wealth_change = as.numeric(rle(treat_less50wealth)$lengths %>% {rep(seq(length(.)), .)})) %>% 
   ungroup() %>% 
   mutate(inc_change = case_when(
     inc_change > 2 ~ 3,
     TRUE ~ inc_change
   )) %>% 
-  mutate(post = case_when(
-    inc_change >= 2 ~ 1,
-    TRUE ~ treat_less50income
+  mutate(wealth_change = case_when(
+    wealth_change > 2 ~ 3,
+    TRUE ~ wealth_change
   )) %>% 
   mutate(treatment_year_inc = case_when(
     inc_change == 2 ~ abstimmungsjahr,
     TRUE ~ NA_integer_
   )) %>% 
+  mutate(treatment_year_wealth = case_when(
+    wealth_change == 2 ~ abstimmungsjahr,
+    TRUE ~ NA_integer_
+  )) %>% 
   group_by(id_ek) %>% 
   fill(treatment_year_inc, .direction = "updown") %>% 
+  fill(treatment_year_wealth, .direction = "updown") %>% 
   mutate(treat_less50income = case_when(
     !is.na(treatment_year_inc) ~ 1,
+    TRUE ~ 0
+  )) %>% 
+  mutate(treat_less50wealth = case_when(
+    !is.na(treatment_year_wealth) ~ 1,
     TRUE ~ 0
   )) %>% 
   # create var years from/to treatment. For the never-treated (i.e. control) units,
   # we'll set the "time_to_treatment" value at 0 for the middle year.
   mutate(treatment_year_inc = 
            ifelse(is.na(treatment_year_inc), round(mean(abstimmungsjahr)), treatment_year_inc)) %>% 
-  mutate(time_to_treat = ifelse(treat_less50income == 1, (abstimmungsjahr - treatment_year_inc), 0))
+  mutate(treatment_year_wealth = 
+           ifelse(is.na(treatment_year_wealth), round(mean(abstimmungsjahr)), treatment_year_wealth)) %>% 
+  mutate(time_to_treat_inc = ifelse(treat_less50income == 1, (abstimmungsjahr - treatment_year_inc), 0)) %>% 
+  mutate(time_to_treat_wealth = ifelse(treat_less50wealth == 1, (abstimmungsjahr - treatment_year_wealth), 0))
   
-  
-  
-# Load and prepare data
-dat = fread("https://raw.githubusercontent.com/LOST-STATS/LOST-STATS.github.io/master/Model_Estimation/Data/Event_Study_DiD/bacon_example.csv") 
 
-# Let's create a more user-friendly indicator of which states received treatment
-dat[, treat := ifelse(is.na(`_nfd`), 0, 1)]
-  
 ```
 
 
@@ -317,7 +333,9 @@ Help: https://lost-stats.github.io/Model_Estimation/Research_Design/event_study.
 
 ```{r}
 library(fixest) 
-mod_twfe = feols(share_teilnahme ~ i(time_to_treat, treat_less50income, ref = -1) + ## key interaction: time × treatment status
+
+# income shocks
+mod_twfe = feols(share_teilnahme ~ i(time_to_treat_inc, treat_less50income, ref = -1) + ## key interaction: time × treatment status
 		  alter + einkommen |               ## Other controls
 		  id_ek + abstimmungsjahr,                  ## FEs
 		 cluster = ~id_ek,                          ## Clustered SEs
@@ -326,8 +344,20 @@ mod_twfe = feols(share_teilnahme ~ i(time_to_treat, treat_less50income, ref = -1
 
 iplot(mod_twfe, 
       xlab = 'Time to treatment',
-      main = 'Event-Study of the Effects of Income Shocks on Voter Turnout (TWFE)')
+      main = 'Event-Study of the Effects of Neg. Income Shocks on Voter Turnout (TWFE)')
 
+
+# wealth shocks
+mod_twfe2 = feols(share_teilnahme ~ i(time_to_treat_wealth, treat_less50income, ref = -1) + ## key interaction: time × treatment status
+		  alter + vermoegen |               ## Other controls
+		  id_ek + abstimmungsjahr,                  ## FEs
+		 cluster = ~id_ek,                          ## Clustered SEs
+		 data = data_year)
+
+
+iplot(mod_twfe2, 
+      xlab = 'Time to treatment',
+      main = 'Event-Study of the Effects of Neg. Wealth Shocks on Voter Turnout (TWFE)')
 ```
 
 
@@ -340,5 +370,40 @@ In Figure 2, we show the curvilinear effects of income on turnout graphically. T
 ```
 
 
-Figure 3 shows estimates from within-individual event-study models with controls as in column 4 of Table 1. Error bars show 95% confidence intervals.We provide descriptive statistics about income transitions in the Online Appendix (p. 11).
-To gain a deeper understanding of the curvilinear relationship between income and turnout, we now investigate asymmetries between negative and positive income shocks. The left panel in Figure 3 shows the event-study for transitions from some to 0 income. Reassuringly for our identification assumption, treated and control households share statistically indistinguishable voter turnout in pretransition elections (i.e., τ < 0). In contrast, turnout decreases after losing income (i.e., τ ≥ 0) by a significant 5 p.p.
+### Je geringer die empfundene Relevanz einer Abstimmung ist, desto grösser ist die Rolle, welche das Einkommen bei der Beteiligung am Urnengang spielt. 
+
+
+```{r}
+votes <- read.csv("/Users/alinelaurametzler/Documents/Universität/Master/Master Thesis/MA-Code/Data/PreparedData/votes_data_short.csv", encoding = "UTF-8")
+
+# select votes with low/high importance (i.e. lowest/highest quartile of importance)
+votes_lowimp <- votes %>% 
+  filter(quantile(importance, 0.25) >= importance) %>% 
+  select(datum, titel_kurz_d, jour, mois, annee, importance)
+votes_highimp <- votes %>% 
+  filter(quantile(importance, 0.75) <= importance) %>% 
+  select(datum, titel_kurz_d, jour, mois, annee, importance)
+
+# join with admin. data
+turnout_lowimp <- votes_lowimp %>% 
+  left_join(data, by = "datum")
+turnout_highimp <- votes_highimp %>% 
+  left_join(data, by = "datum")
+
+
+# multinomial logit model
+mlogit_lowimp <- multinom(beteiligt ~ alter_c + sex_c + konfession_c + residenz10 + zugezogen + mEinkommen_c + Vermoegen_c,
+                   data = turnout_lowimp)
+mlogit_highimp <- multinom(beteiligt ~ alter_c + sex_c + konfession_c + residenz10 + zugezogen + mEinkommen_c + Vermoegen_c,
+                   data = turnout_highimp)
+
+stargazer(mlogit_lowimp, mlogit_highimp, type = "text")
+```
+
+### Bei Abstimmungen mit einem grösseren Umverteilungsaspekt spielt das Einkommen eine grössere Rolle bei der Beteiligung am Urnengang.
+
+
+```{r}
+
+```
+

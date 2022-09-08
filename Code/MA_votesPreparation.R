@@ -212,19 +212,19 @@ prep_voto_data <- function(name, day, month, year){
 
        
          
-voto_826 <- prep_voto_data(swissubase_826_5_0, 25, "September", 2016)
-voto_839 <- prep_voto_data(swissubase_839_3_0, 27, "November", 2016)
-voto_851 <- prep_voto_data(swissubase_851_3_0, 12, "Februar", 2017)
-voto_855 <- prep_voto_data(swissubase_855_3_0, 21, "Mai", 2017)
-voto_872 <- prep_voto_data(swissubase_872_2_0, 24, "September", 2017)
-voto_921 <- prep_voto_data(swissubase_921_1_0, 4, "März", 2018)
-voto_938 <- prep_voto_data(swissubase_938_1_0, 10, "Juni", 2018)
-voto_948 <- prep_voto_data(swissubase_948_1_0, 23, "September", 2018)
-voto_957 <- prep_voto_data(swissubase_957_1_0, 25, "November", 2018)
-voto_972 <- prep_voto_data(swissubase_972_1_0, 10, "Februar", 2019)
-voto_1072 <- prep_voto_data(swissubase_1072_1_0, 19, "Mai", 2019)
-voto_1151 <- prep_voto_data(swissubase_1151_1_0, 9, "Februar", 2020)
-voto_1225 <- prep_voto_data(swissubase_1225_2_0, 27, "September", 2020)
+voto_826 <- prep_voto_data(swissubase_826_5_0, 25, "9", 2016)
+voto_839 <- prep_voto_data(swissubase_839_3_0, 27, "11", 2016)
+voto_851 <- prep_voto_data(swissubase_851_3_0, 12, "2", 2017)
+voto_855 <- prep_voto_data(swissubase_855_3_0, 21, "5", 2017)
+voto_872 <- prep_voto_data(swissubase_872_2_0, 24, "9", 2017)
+voto_921 <- prep_voto_data(swissubase_921_1_0, 4, "3", 2018)
+voto_938 <- prep_voto_data(swissubase_938_1_0, 10, "6", 2018)
+voto_948 <- prep_voto_data(swissubase_948_1_0, 23, "9", 2018)
+voto_957 <- prep_voto_data(swissubase_957_1_0, 25, "11", 2018)
+voto_972 <- prep_voto_data(swissubase_972_1_0, 10, "2", 2019)
+voto_1072 <- prep_voto_data(swissubase_1072_1_0, 19, "5", 2019)
+voto_1151 <- prep_voto_data(swissubase_1151_1_0, 9, "2", 2020)
+voto_1225 <- prep_voto_data(swissubase_1225_2_0, 27, "9", 2020)
 
 rm(swissubase_826_5_0, swissubase_839_3_0, swissubase_851_3_0, swissubase_855_3_0,
    swissubase_872_2_0, swissubase_921_1_0, swissubase_938_1_0, swissubase_948_1_0,
