@@ -26,8 +26,14 @@ library(ggplot2)
 
 Data is read and prepared in separate file. The variable for the type of voter is created by filtering individuals that lived in the same community for at least ten consecutive votes. For each individual the 10 most recent votes were selected. This allows for the classification of these individuals into "never voters" (0-1 participation), "selective voters" (2-8 participation) and "always voters" (9-10 participation). 
 
+
+TODO: initially I wanted to use source() to get prepared data files, but it takes extremely long (much longer than 
+running the scripts themselves).. Why? Is there a good alternative, since now I have to do the levels and 
+factorization again, since the csv doesn't read them as programmed before...
+
 ```{r}
 setwd("/Users/alinelaurametzler/Documents/Universität/Master/Master Thesis/MA-Code/")
+
 data <- read.csv("/Users/alinelaurametzler/Documents/Universität/Master/Master Thesis/MA-Code/Data/PreparedData/data.csv", encoding = "UTF-8") %>% 
   mutate(beteiligt = as.factor(beteiligt)) %>%
   mutate(beteiligt = fct_relevel(beteiligt, c("keine Stimmbeteiligung", "mit Stimmbeteiligung"))) %>% 
@@ -171,6 +177,8 @@ stargazer(mlogit_det, type = "text")
 
 ### Effect of age on political participation for different income quartiles
 
+H2
+
 ```{r}
 plot_scatter_ageincome <- data_mlogit %>% 
   filter(!is.na(mEinkommen_c)) %>% 
@@ -204,6 +212,8 @@ plot_scatter_agevermoegen
 
 ### Effect of jumps in income/wealth
 
+H3A/B
+
 Identify the jumps
 
 ->Since we only have income per year -->participation as share (sum(partic)/sum(all_votes))
@@ -212,16 +222,17 @@ Identify the jumps
 
 
 Possible distinctions:
-Four graphs, corresponding to three distinct events:
 1)	From no income to some income
 2)	From some income to no income
 3)	From some income to less than 50% of that income
 4)	From some income to less than 75% of that income
 
-
+TODO: Do you have a recommendation for defining jumps of income/wealth? And should I address it seperately in the paper?
 
 ```{r}
 library(data.table) 
+
+# TODO: write function to just specify income/wealth and the wanted distinction of jumps
 
 # get aggregated data by year for respondents
 data_year <- data %>% 
@@ -255,7 +266,7 @@ data_year <- data_year %>%
   mutate(change_eink = 100 * (einkommen - lag(einkommen, default = NA))/lag(einkommen, default = NA)) %>% 
   mutate(change_verm = 100 * (vermoegen - lag(vermoegen, default = NA))/lag(vermoegen, default = NA)) %>% 
   # Identify big changes in income/wealth
-  # TODO: when is change considered to be big? (after 30% change?)
+  # TODO: when is change considered to be big? (after 50% change?)
   mutate(bigchange_eink = case_when(
     change_eink >= 20 ~ 5,
     change_eink >= 50 ~ 1,
@@ -333,6 +344,8 @@ Help: https://lost-stats.github.io/Model_Estimation/Research_Design/event_study.
 
 ```{r}
 library(fixest) 
+# TODO: do I need to account for all control variables in the diff-in-diff model? 
+# -->how should I handle the categorical ones?
 
 # income shocks
 mod_twfe = feols(share_teilnahme ~ i(time_to_treat_inc, treat_less50income, ref = -1) + ## key interaction: time × treatment status
@@ -362,11 +375,13 @@ iplot(mod_twfe2,
 
 
 
-In Figure 2, we show the curvilinear effects of income on turnout graphically. To do so, we estimate the impact of economic status, as measured by changes in a voter’s relative position in the income distribution (in deciles) from one election-year to the next. For example, the left-most coefficient shows that moving from the lowest 10% to the 10%–20%—a difference of about € 9,000— increases voter turnout by 2.2 p.p., on average. Climbing up each step of the income ladder leads to higher voter turnout until the median (about € 21,500), where the impact on participation compared to the bottom decile is about 4.2 p.p. Beyond that, the marginal effect of income appears to diminish toward 0.
+The effect of income is very different depending on the age category!
+
+
 
 
 ```{r}
-
+plot_scatter_sex
 ```
 
 
@@ -405,5 +420,69 @@ stargazer(mlogit_lowimp, mlogit_highimp, type = "text")
 
 ```{r}
 
+
+# 10.2	Sozialversicherungen
+# 6.1	Steuerwesen
+
+votes_umverteilung <- votes %>% 
+  filter(d1e2 %in% c(6.1, 10.2))
+
+votes_steuern <- votes %>% 
+  filter(d1e2 == 6.1)
+
+
+# join with admin. data
+turnout_umverteilung<- votes_umverteilung %>% 
+  left_join(data, by = "datum")
+turnout_steuern <- votes_steuern %>% 
+  left_join(data, by = "datum")
+
+
+# multinomial logit model
+mlogit_umverteilung <- multinom(beteiligt ~ alter_c + sex_c + konfession_c + residenz10 + zugezogen + mEinkommen_c + Vermoegen_c,
+                   data = turnout_umverteilung)
+mlogit_steuern <- multinom(beteiligt ~ alter_c + sex_c + konfession_c + residenz10 + zugezogen + mEinkommen_c + Vermoegen_c,
+                   data = turnout_steuern)
+
+stargazer(mlogit_umverteilung, mlogit_steuern, type = "text")
 ```
+
+### Der Effekt von hohem Einkommen überträgt sich auch auf die Beteiligung am Urnengang anderer Personen, welche im selben Haushalt leben.
+
+
+Compare households with high income/wealth to households with low income wealth
+
+Compare highest earning person of household to other members that have less income/wealth
+-->Especially look at adult children that still live with parents
+
+
+```{r}
+# TODO: can I just  define children by their age group (18-25) living with older age group (35-65)?
+# -->what about couples, shared flats with bigger age gaps? (right now I just ignore this)
+data_households <- data %>% 
+  ungroup() %>% 
+  filter(haushalttyp_sw_2 == "Mehrpersonenhaushalte") %>% 
+  filter(generationen_sw %in% c("Zwei Generationen", "Drei Generationen", "Vier Generationen")) %>% 
+  mutate(young_pers = case_when(
+    alter_v <= 25 ~ 1,
+    TRUE ~ 0
+  )) %>% 
+  mutate(older_pers = case_when(
+    alter_v > 35 & alter_v <= 65 ~ 1,
+    TRUE ~ 0
+  )) %>% 
+  group_by(householdID_sw) %>% 
+  # all housholds (mind. 2 generations) with young people and older people in them
+  filter(sum(young_pers) >= 1 & sum(older_pers) >= 1) 
+
+# households with high income
+
+
+# households with low income
+
+
+```
+
+
+### Should I also look at neighborhoods? It is possible for "Kleinquartiere" in the city SG
 

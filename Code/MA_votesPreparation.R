@@ -1,4 +1,4 @@
-#############################Prepare swissvotes Data#############################
+############################ Prepare swissvotes Data ############################
 
 # Libraries
 library(tidyverse)
@@ -56,10 +56,9 @@ library(haven)
 ## Voxit: 2010-2016
 # Voxit: Standardisierter Datensatz für alle Vorlagen zwischen 1977 und 2016
 voxit_20102016 <- haven::read_dta("./Data/VOX_Voto/VOX/689_VoxIt_Data_CumulatedFile_Vorlagen_15_121_D.dta")
-# voxit_termine <- haven::read_dta("./Data/VOX_Voto/VOX/689_VoxIt_Data_CumulatedFile_Abstimmungstermine_15_121_D.dta")
 
 # Empfundene Relevanz & Komplexität
-# zwischen 2010 und 2020 können dazu die aggregierten,repräsentativen Umfragewerte für deutschsprechende Stimmberechtigte abgerufen werde
+# zwischen 2010 und 2020 können dazu die aggregierten, repräsentativen Umfragewerte für deutschsprechende Stimmberechtigte abgerufen werde
 voxit_20102016 <- voxit_20102016 %>% 
   mutate(datum = ymd(paste(annee, mois, jour, sep = "-"))) %>% 
   select(datum, jour, mois, annee, projetx, id, canton, regiling, regeco, a84x,  a89x) %>% 
@@ -81,6 +80,7 @@ voxit_20102016 <- voxit_20102016 %>%
     difficulty == 1 ~ 1,
     TRUE ~ 0
   )) %>% 
+  # Change values of difficulty so it matches structure of voto
   mutate(alle = case_when(
     difficulty == 1 ~ 1,
     difficulty == 2 ~ 1,
@@ -115,6 +115,11 @@ for (i in 1:length(files)) { # for each file in the list
 
 rm(tempData, names)
 
+## TODO: Are these variables similar enough? I contacted Prof. Dr. Stadelmann-Steffen
+## of paper "Who decides? Characteristics of a Vote and its Influence on the Electorate"
+## and she did it almost the same way
+
+## Importance
 # voto_826$importance: Personal importance of voting proposal
 # Reden wir jetzt davon, wie wichtig die Vorlagen vom
 # [DATE] für Sie persönlich gewesen sind.
@@ -128,7 +133,7 @@ rm(tempData, names)
 # die TITLE VOTE hatte? Nennen Sie mir eine Zahl zwischen 0 und 10. 
 # 0 bedeutet überhaupt keine Bedeutung, 10 sehr grosse Bedeutung.»
 
-
+## Difficulty
 # voto_826$difficult: Difficulty with understanding
 # Ist es Ihnen bei der/beim TITLE VOTING PROPOSAL
 # eher leicht oder eher schwer gefallen zu verstehen,
@@ -137,7 +142,7 @@ rm(tempData, names)
 # voxit$a84x: Schwierigkeit sich eine Meinung zu bilden (zur Vorlage)
 
 
-# Select and prepare variable
+# Select and prepare variables
 prep_voto_data <- function(name, day, month, year){
   name %>% 
     mutate(jour = day,
@@ -145,7 +150,7 @@ prep_voto_data <- function(name, day, month, year){
            annee = year,
            datum = ymd(paste(annee, mois, jour, sep = "-"))) %>% 
     mutate(langreg = ifelse("communelanguage" %in% names(name) == TRUE, communelanguage, NA)) %>% 
-    mutate(weight = ifelse("w_dtccpv" %in% names(name) == TRUE, w_dtccpv, 1)) %>% # only round 826 has weights?! 
+    mutate(weight = ifelse("w_dtccpv" %in% names(name) == TRUE, w_dtccpv, 1)) %>% # only round 826 has weights?! -->TODO: what about weighting here?
     select(datum, jour, mois, annee, personid_4, weight, reportingcanton, bigregion, langreg, starts_with("importance"), starts_with("difficul")) %>% 
     mutate(reportingcanton = as.character(reportingcanton)) %>% 
     mutate(across(starts_with("importance"), as.character)) %>% 
@@ -181,6 +186,7 @@ prep_voto_data <- function(name, day, month, year){
            langreg = as.character(langreg),
            difficulty = as.double(difficulty),
            importance = as.double(importance)) %>%
+    # Code NAs
     mutate(difficulty = case_when(
       difficulty == 8 ~ NA_real_,
       difficulty == 9 ~ NA_real_,

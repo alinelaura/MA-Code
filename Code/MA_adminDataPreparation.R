@@ -10,6 +10,7 @@ library(tidyr)
 
 setwd("/Users/alinelaurametzler/Documents/Universität/Master/Master Thesis/MA-Code/")
 getwd()
+
 # Read Data
 data_admin <- read.csv("./Data/IndividualdatenSTISTAT_2010-2020/IndividualdatenSTISTAT_2010-2020_pa5818_20220818.csv") 
 # data_admin_old <- read.csv("./Data/Archiv/IndividualdatenSTISTAT_2010-2020_5818.csv") 
@@ -29,16 +30,10 @@ data_admin <- data_admin %>%
   filter(!is.na(id_ek))
 
 
-#####################  Municipalities with no tax data  #########################
-
-# # For now: only SG city has tax data available
-# data_admin <- data_admin %>% 
-#   filter(bfsnr == 3203)
-
 
 ############## Account for people who moved and then moved back #################
 
-# All individuals and the years they lived in the community
+# All unique individuals and the years they lived in the community
 id_year <- data_admin %>% 
   select(id_ek, abstimmungsjahr, bfsnr) %>% 
   group_by(id_ek, abstimmungsjahr, bfsnr) %>% 
@@ -65,7 +60,7 @@ id_year <- id_year %>%
   ungroup() %>% 
   select(-pers_change) 
 
-# # Controll that it worked 
+# # Control that it worked 
 # weg_und_zuzuege <- id_year %>%
 #   ungroup() %>%
 #   filter(bfsnr == 0) %>%
@@ -110,8 +105,12 @@ data_imp <- data_prep %>%
 
 
 ######################### Impute missing values in df ###########################
+# TODO: how should I account for the imputed values? They are very likely to be correct
+# but do I need to do some test/ include dummies for the imputation?
+
 # So far only impute vars that I need for analysis
-# TODO: impute age (bot how?)
+# TODO: impute age (but how, since we don't know birthday?)
+# -->should I just take last known age and not care whether people got a year older?
 data_imp2 <- data_imp %>% 
   group_by(id_ek, ID_move_change, bfsnr) %>% 
   arrange(id_ek, ID_move_change, abstimmungsjahr, abstimmungsmonat) %>% 
@@ -264,7 +263,7 @@ data_mlogit <- data_mlogit %>%
   arrange(id_ek, abst_reihe)
 
 
-length(unique(data_mlogit$id_ek))  # 58'535 individuals for SG city
+length(unique(data_mlogit$id_ek))  
 
 
 # create type of voters
