@@ -387,6 +387,7 @@ plot_scatter_sex
 
 ### Je geringer die empfundene Relevanz einer Abstimmung ist, desto grösser ist die Rolle, welche das Einkommen bei der Beteiligung am Urnengang spielt. 
 
+TODO: Is there a better method to compare the effect of the independent on the dependent variable than just subsetting the group and looking at the estimates?
 
 ```{r}
 votes <- read.csv("/Users/alinelaurametzler/Documents/Universität/Master/Master Thesis/MA-Code/Data/PreparedData/votes_data_short.csv", encoding = "UTF-8")
@@ -473,13 +474,44 @@ data_households <- data %>%
   )) %>% 
   group_by(householdID_sw) %>% 
   # all housholds (mind. 2 generations) with young people and older people in them
-  filter(sum(young_pers) >= 1 & sum(older_pers) >= 1) 
+  filter(sum(young_pers) >= 1 & sum(older_pers) >= 1) %>% 
+  # create variable to sum income of parents (=older_pers in household)
+  group_by(householdID_sw, older_pers) %>% 
+  mutate(income_older = case_when(
+    # married couples have joined incomes
+    steuer_tarif_imputed == "verheiratet" & older_pers == 1 ~ massgebendesEinkommen_imputed,
+    steuer_tarif_imputed == "alleinstehend/unverheiratet" & older_pers == 1 ~ sum(massgebendesEinkommen_imputed) ,
+    TRUE ~ NA_real_
+  )) %>% 
+  ungroup() %>% 
+  group_by(householdID_sw) %>% 
+  fill(income_older, .direction = "updown") %>% 
+  filter(young_pers == 1) %>% 
+  ungroup() %>% 
+  filter(!is.na(income_older)) %>% 
+  # take one random vote date per individual
+  group_by(id_ek) %>%
+  sample_n(1)
 
-# households with high income
+
+# households with low income of parents
+data_households_low <- data_households %>% 
+  ungroup() %>% 
+  filter(quantile(income_older, 0.25) >= income_older) 
+
+mlogit_household_low <- multinom(beteiligt ~  alter_c + sex_c + konfession_c + residenz10 + zugezogen + income_older+ mEinkommen_c + Vermoegen_c,
+                   data = data_households_low)
 
 
-# households with low income
 
+# households with high income of parents
+data_households_high <- data_households %>% 
+  filter(quantile(income_older, 0.75) <= income_older) 
+
+mlogit_household_high <- multinom(beteiligt ~  alter_c + sex_c + konfession_c + residenz10 + zugezogen + income_older + mEinkommen_c + Vermoegen_c,
+                   data = data_households_high)
+
+stargazer(mlogit_household_low, mlogit_household_high, type = "text")
 
 ```
 
