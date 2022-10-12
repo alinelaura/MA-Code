@@ -2,7 +2,9 @@
 title: "Masterthesis script"
 author: "Aline Laura Metzler"
 date: "5/26/2022"
-output: pdf_document
+output:
+  pdf_document:
+    latex_engine: xelatex
 ---
 
 ```{r setup, include=FALSE}
@@ -10,8 +12,8 @@ knitr::opts_chunk$set(echo = TRUE)
 ```
 
 
-wefqwef
-```{r}
+
+```{r message=FALSE, warning=FALSE}
 library(ggplot2)
 library(tidyverse)
 library(dplyr)
@@ -27,11 +29,11 @@ library(ggplot2)
 Data is read and prepared in separate file. The variable for the type of voter is created by filtering individuals that lived in the same community for at least ten consecutive votes. For each individual the 10 most recent votes were selected. This allows for the classification of these individuals into "never voters" (0-1 participation), "selective voters" (2-8 participation) and "always voters" (9-10 participation). 
 
 
-TODO: initially I wanted to use source() to get prepared data files, but it takes extremely long (much longer than 
+TODO: initially I wanted to use source() to get the prepared data files, but it takes extremely long (much longer than 
 running the scripts themselves).. Why? Is there a good alternative, since now I have to do the levels and 
 factorization again, since the csv doesn't read them as programmed before...
 
-```{r}
+```{r message=FALSE, warning=FALSE}
 setwd("/Users/alinelaurametzler/Documents/Universität/Master/Master Thesis/MA-Code/")
 
 data <- read.csv("/Users/alinelaurametzler/Documents/Universität/Master/Master Thesis/MA-Code/Data/PreparedData/data.csv", encoding = "UTF-8") %>% 
@@ -77,19 +79,39 @@ data_mlogit15 <- read.csv("/Users/alinelaurametzler/Documents/Universität/Mast
 ```
 
 ### Distribution of voter types
-Hier folgt dann noch eine schöne Tabelle, evtl. mit Kummulierter Häufigkeit.
+Hier folgt dann noch eine schöne Tabelle, evtl. mit Kummulierter Haeufigkeit.
 
-```{r}
+```{r message=FALSE, warning=FALSE}
 summary(data_mlogit$vote_type)
 
 summary(data_mlogit$vote_type_det)
+
+data_table <- data_mlogit %>% 
+  group_by(anz_teilnahme) %>% 
+  summarise(count = n()) %>% 
+  mutate(cum = cumsum(count)/sum(count)) %>% 
+  rename(`Anzahl Teilnahme` = anz_teilnahme,
+         `Anzahl Individuen` = count,
+         `Kummulative Häufigkeit` = cum)
+
+
+library(xtable)
+table <- xtable(data_table)
+# print(table)
+
+
+library(reactable)
+reactable(data_table, 
+          defaultPageSize = 15,
+          columns = list(`Kummulative Häufigkeit` = colDef(format = colFormat(percent = TRUE, digits = 1))))
+
 ```
 
 ### Scatter Plot Einkommen und Anz. Teilnahmen bei 10 Abstimmungen
 
 H1A/B
 
-```{r}
+```{r message=FALSE, warning=FALSE}
 summary(data_mlogit$massgebendesEinkommen_imputed)
 summary(data_mlogit$anz_teilnahme)
 
@@ -101,8 +123,7 @@ plot_scatter <- data_mlogit %>%
   )) %>% 
   ggplot(aes(x = massgebendesEinkommen_imputed, y = anz_teilnahme)) +
   # geom_bin2d(bins = 10)
-  geom_point() +
-  geom_jitter() +
+  geom_jitter(alpha = 0.1) +
   geom_smooth() +
   theme_minimal()
 plot_scatter
@@ -114,8 +135,7 @@ plot_scatter_age <- data_mlogit %>%
     TRUE ~ massgebendesEinkommen_imputed
   )) %>% 
   ggplot(aes(x = massgebendesEinkommen_imputed, y = anz_teilnahme)) +
-  geom_point() +
-  geom_jitter() +
+  geom_jitter(alpha = 0.1) +
   geom_smooth() +
   facet_wrap(~ alter_c) +
   theme_minimal()
@@ -128,8 +148,7 @@ plot_scatter_sex <- data_mlogit %>%
     TRUE ~ massgebendesEinkommen_imputed
   )) %>% 
   ggplot(aes(x = massgebendesEinkommen_imputed, y = anz_teilnahme)) +
-  geom_point() +
-  geom_jitter() +
+  geom_jitter(alpha = 0.1) +
   geom_smooth() +
   facet_wrap(~ sex_c) +
   theme_minimal()
@@ -143,7 +162,7 @@ Was ist der Unterschied zwischen mlogit() und multinom()? Weshalb funktioniert m
 
 H1.1A/B
 
-```{r}
+```{r message=FALSE, warning=FALSE}
 # library(mlogit)
 #
 # # Generating the Person-Choice Matrix
@@ -169,7 +188,7 @@ stargazer(mlogit, type = "text")
 ```
 
 
-```{r}
+```{r message=FALSE, warning=FALSE}
 mlogit_det <- multinom(vote_type_det ~ alter_c + sex_c + konfession_c + residenz10 + zugezogen + mEinkommen_c + Vermoegen_c,
                    data = data_mlogit15)
 stargazer(mlogit_det, type = "text")
@@ -179,7 +198,7 @@ stargazer(mlogit_det, type = "text")
 
 H2
 
-```{r}
+```{r message=FALSE, warning=FALSE}
 plot_scatter_ageincome <- data_mlogit %>% 
   filter(!is.na(mEinkommen_c)) %>% 
   mutate(massgebendesEinkommen_imputed = case_when(
@@ -187,8 +206,7 @@ plot_scatter_ageincome <- data_mlogit %>%
     TRUE ~ massgebendesEinkommen_imputed
   )) %>% 
   ggplot(aes(x = alter_v, y = anz_teilnahme)) +
-  geom_point() +
-  geom_jitter() +
+  geom_jitter(alpha = 0.1) +
   geom_smooth() +
   facet_wrap(~ mEinkommen_c) +
   theme_minimal()
@@ -208,6 +226,9 @@ plot_scatter_agevermoegen <- data_mlogit %>%
   facet_wrap(~ Vermoegen_c) +
   theme_minimal()
 plot_scatter_agevermoegen
+
+
+plot_scatter_age
 ```
 
 ### Effect of jumps in income/wealth
@@ -229,7 +250,7 @@ Possible distinctions:
 
 TODO: Do you have a recommendation for defining jumps of income/wealth? And should I address it seperately in the paper?
 
-```{r}
+```{r message=FALSE, warning=FALSE}
 library(data.table) 
 
 # TODO: write function to just specify income/wealth and the wanted distinction of jumps
@@ -267,26 +288,46 @@ data_year <- data_year %>%
   mutate(change_verm = 100 * (vermoegen - lag(vermoegen, default = NA))/lag(vermoegen, default = NA)) %>% 
   # Identify big changes in income/wealth
   # TODO: when is change considered to be big? (after 50% change?)
-  mutate(bigchange_eink = case_when(
+  mutate(bigchange_eink50 = case_when(
     change_eink >= 20 ~ 5,
     change_eink >= 50 ~ 1,
     change_eink <= -50 ~ 2,
     TRUE ~ 0
   )) %>% 
-  mutate(bigchange_verm = case_when(
+  mutate(bigchange_verm50 = case_when(
     change_verm >= 20 ~ 5,
     change_verm >= 50 ~ 1,
     change_verm <= -50 ~ 2,
     TRUE ~ 0
   )) %>% 
+  mutate(bigchange_eink75 = case_when(
+    change_eink >= 20 ~ 5,
+    change_eink >= 50 ~ 1,
+    change_eink <= -75 ~ 3,
+    TRUE ~ 0
+  )) %>% 
+  mutate(bigchange_verm75 = case_when(
+    change_verm >= 20 ~ 5,
+    change_verm >= 50 ~ 1,
+    change_verm <= -75 ~ 3,
+    TRUE ~ 0
+  )) %>% 
   # create variable to detect individuals with treatment (i.e. big income drop)
   # Only valid when also wealth dropped (otherwise just income shift)
   mutate(treat_less50income = case_when(
-    bigchange_eink == 2 & bigchange_verm %in% c(0, 5) ~ 1,
+    bigchange_eink50 == 2 & bigchange_verm50 %in% c(0, 5) ~ 1,
     TRUE ~ 0
   )) %>% 
   mutate(treat_less50wealth = case_when(
-    bigchange_verm == 2 & bigchange_eink %in% c(0, 5) ~ 1,
+    bigchange_verm50 == 2 & bigchange_eink50 %in% c(0, 5) ~ 1,
+    TRUE ~ 0
+  )) %>% 
+  mutate(treat_less75income = case_when(
+    bigchange_eink75 == 3 & bigchange_verm75 %in% c(0, 5) ~ 1,
+    TRUE ~ 0
+  )) %>% 
+  mutate(treat_less75wealth = case_when(
+    bigchange_verm75 == 3 & bigchange_eink75 %in% c(0, 5) ~ 1,
     TRUE ~ 0
   )) 
 
@@ -294,44 +335,78 @@ data_year <- data_year %>%
 data_year <- data_year %>%
   # for multiple income/wealth shocks only take first one
   group_by(id_ek) %>%
-  mutate(inc_change = as.numeric(rle(treat_less50income)$lengths %>% {rep(seq(length(.)), .)})) %>% 
-  mutate(wealth_change = as.numeric(rle(treat_less50wealth)$lengths %>% {rep(seq(length(.)), .)})) %>% 
+  mutate(inc_change50 = as.numeric(rle(treat_less50income)$lengths %>% {rep(seq(length(.)), .)})) %>% 
+  mutate(wealth_change50 = as.numeric(rle(treat_less50wealth)$lengths %>% {rep(seq(length(.)), .)})) %>% 
+  mutate(inc_change75 = as.numeric(rle(treat_less75income)$lengths %>% {rep(seq(length(.)), .)})) %>% 
+  mutate(wealth_change75 = as.numeric(rle(treat_less75wealth)$lengths %>% {rep(seq(length(.)), .)})) %>%
   ungroup() %>% 
-  mutate(inc_change = case_when(
-    inc_change > 2 ~ 3,
-    TRUE ~ inc_change
+  mutate(inc_change50 = case_when(
+    inc_change50 > 2 ~ 3,
+    TRUE ~ inc_change50
   )) %>% 
-  mutate(wealth_change = case_when(
-    wealth_change > 2 ~ 3,
-    TRUE ~ wealth_change
+  mutate(wealth_change50 = case_when(
+    wealth_change50 > 2 ~ 3,
+    TRUE ~ wealth_change50
   )) %>% 
-  mutate(treatment_year_inc = case_when(
-    inc_change == 2 ~ abstimmungsjahr,
+  mutate(treatment_year_inc50 = case_when(
+    inc_change50 == 2 ~ abstimmungsjahr,
     TRUE ~ NA_integer_
   )) %>% 
-  mutate(treatment_year_wealth = case_when(
-    wealth_change == 2 ~ abstimmungsjahr,
+  mutate(treatment_year_wealth50 = case_when(
+    wealth_change50 == 2 ~ abstimmungsjahr,
+    TRUE ~ NA_integer_
+  )) %>% 
+  mutate(inc_change75 = case_when(
+    inc_change75 > 3 ~ 3,
+    TRUE ~ inc_change75
+  )) %>% 
+  mutate(wealth_change75 = case_when(
+    wealth_change75 > 3 ~ 3,
+    TRUE ~ wealth_change75
+  )) %>% 
+  mutate(treatment_year_inc75 = case_when(
+    inc_change75 == 3 ~ abstimmungsjahr,
+    TRUE ~ NA_integer_
+  )) %>% 
+  mutate(treatment_year_wealth75 = case_when(
+    wealth_change75 == 3 ~ abstimmungsjahr,
     TRUE ~ NA_integer_
   )) %>% 
   group_by(id_ek) %>% 
-  fill(treatment_year_inc, .direction = "updown") %>% 
-  fill(treatment_year_wealth, .direction = "updown") %>% 
+  fill(treatment_year_inc50, .direction = "updown") %>% 
+  fill(treatment_year_wealth50, .direction = "updown") %>% 
+  fill(treatment_year_inc75, .direction = "updown") %>% 
+  fill(treatment_year_wealth75, .direction = "updown") %>% 
   mutate(treat_less50income = case_when(
-    !is.na(treatment_year_inc) ~ 1,
+    !is.na(treatment_year_inc50) ~ 1,
     TRUE ~ 0
   )) %>% 
   mutate(treat_less50wealth = case_when(
-    !is.na(treatment_year_wealth) ~ 1,
+    !is.na(treatment_year_wealth50) ~ 1,
+    TRUE ~ 0
+  )) %>% 
+  mutate(treat_less75income = case_when(
+    !is.na(treatment_year_inc75) ~ 1,
+    TRUE ~ 0
+  )) %>% 
+  mutate(treat_less75wealth = case_when(
+    !is.na(treatment_year_wealth75) ~ 1,
     TRUE ~ 0
   )) %>% 
   # create var years from/to treatment. For the never-treated (i.e. control) units,
   # we'll set the "time_to_treatment" value at 0 for the middle year.
-  mutate(treatment_year_inc = 
-           ifelse(is.na(treatment_year_inc), round(mean(abstimmungsjahr)), treatment_year_inc)) %>% 
-  mutate(treatment_year_wealth = 
-           ifelse(is.na(treatment_year_wealth), round(mean(abstimmungsjahr)), treatment_year_wealth)) %>% 
-  mutate(time_to_treat_inc = ifelse(treat_less50income == 1, (abstimmungsjahr - treatment_year_inc), 0)) %>% 
-  mutate(time_to_treat_wealth = ifelse(treat_less50wealth == 1, (abstimmungsjahr - treatment_year_wealth), 0))
+  mutate(treatment_year_inc50 = 
+           ifelse(is.na(treatment_year_inc50), round(mean(abstimmungsjahr)), treatment_year_inc50)) %>% 
+  mutate(treatment_year_wealth50 = 
+           ifelse(is.na(treatment_year_wealth50), round(mean(abstimmungsjahr)), treatment_year_wealth50)) %>% 
+  mutate(time_to_treat_inc50 = ifelse(treat_less50income == 1, (abstimmungsjahr - treatment_year_inc50), 0)) %>% 
+  mutate(time_to_treat_wealth50 = ifelse(treat_less50wealth == 1, (abstimmungsjahr - treatment_year_wealth50), 0)) %>% 
+  mutate(treatment_year_inc75 = 
+           ifelse(is.na(treatment_year_inc75), round(mean(abstimmungsjahr)), treatment_year_inc75)) %>% 
+  mutate(treatment_year_wealth75 = 
+           ifelse(is.na(treatment_year_wealth75), round(mean(abstimmungsjahr)), treatment_year_wealth75)) %>% 
+  mutate(time_to_treat_inc75 = ifelse(treat_less75income == 1, (abstimmungsjahr - treatment_year_inc75), 0)) %>% 
+  mutate(time_to_treat_wealth75 = ifelse(treat_less75wealth == 1, (abstimmungsjahr - treatment_year_wealth75), 0))
   
 
 ```
@@ -342,13 +417,13 @@ Help: https://lost-stats.github.io/Model_Estimation/Research_Design/event_study.
 
 
 
-```{r}
+```{r message=FALSE, warning=FALSE}
 library(fixest) 
 # TODO: do I need to account for all control variables in the diff-in-diff model? 
 # -->how should I handle the categorical ones?
 
 # income shocks
-mod_twfe = feols(share_teilnahme ~ i(time_to_treat_inc, treat_less50income, ref = -1) + ## key interaction: time × treatment status
+mod_twfe = feols(share_teilnahme ~ i(time_to_treat_inc50, treat_less50income, ref = -1) + ## key interaction: time × treatment status
 		  alter + einkommen |               ## Other controls
 		  id_ek + abstimmungsjahr,                  ## FEs
 		 cluster = ~id_ek,                          ## Clustered SEs
@@ -361,7 +436,7 @@ iplot(mod_twfe,
 
 
 # wealth shocks
-mod_twfe2 = feols(share_teilnahme ~ i(time_to_treat_wealth, treat_less50income, ref = -1) + ## key interaction: time × treatment status
+mod_twfe2 = feols(share_teilnahme ~ i(time_to_treat_wealth50, treat_less50income, ref = -1) + ## key interaction: time × treatment status
 		  alter + vermoegen |               ## Other controls
 		  id_ek + abstimmungsjahr,                  ## FEs
 		 cluster = ~id_ek,                          ## Clustered SEs
@@ -371,6 +446,32 @@ mod_twfe2 = feols(share_teilnahme ~ i(time_to_treat_wealth, treat_less50income, 
 iplot(mod_twfe2, 
       xlab = 'Time to treatment',
       main = 'Event-Study of the Effects of Neg. Wealth Shocks on Voter Turnout (TWFE)')
+
+
+# income shocks
+mod_twfe = feols(share_teilnahme ~ i(time_to_treat_inc75, treat_less75income, ref = -1) + ## key interaction: time × treatment status
+		  alter + einkommen |               ## Other controls
+		  id_ek + abstimmungsjahr,                  ## FEs
+		 cluster = ~id_ek,                          ## Clustered SEs
+		 data = data_year)
+
+
+iplot(mod_twfe, 
+      xlab = 'Time to treatment',
+      main = 'Event-Study of the Effects of Neg. Income (-75%) Shocks on Voter Turnout (TWFE)')
+
+
+# wealth shocks
+mod_twfe2 = feols(share_teilnahme ~ i(time_to_treat_wealth75, treat_less75income, ref = -1) + ## key interaction: time × treatment status
+		  alter + vermoegen |               ## Other controls
+		  id_ek + abstimmungsjahr,                  ## FEs
+		 cluster = ~id_ek,                          ## Clustered SEs
+		 data = data_year)
+
+
+iplot(mod_twfe2, 
+      xlab = 'Time to treatment',
+      main = 'Event-Study of the Effects of Neg. Wealth (-75%) Shocks on Voter Turnout (TWFE)')
 ```
 
 
@@ -380,16 +481,16 @@ The effect of income is very different depending on the age category!
 
 
 
-```{r}
+```{r message=FALSE, warning=FALSE}
 plot_scatter_sex
 ```
 
 
-### Je geringer die empfundene Relevanz einer Abstimmung ist, desto grösser ist die Rolle, welche das Einkommen bei der Beteiligung am Urnengang spielt. 
+### Je geringer die empfundene Relevanz einer Abstimmung ist, desto groesser ist die Rolle, welche das Einkommen bei der Beteiligung am Urnengang spielt. 
 
 TODO: Is there a better method to compare the effect of the independent on the dependent variable than just subsetting the group and looking at the estimates?
 
-```{r}
+```{r message=FALSE, warning=FALSE}
 votes <- read.csv("/Users/alinelaurametzler/Documents/Universität/Master/Master Thesis/MA-Code/Data/PreparedData/votes_data_short.csv", encoding = "UTF-8")
 
 # select votes with low/high importance (i.e. lowest/highest quartile of importance)
@@ -419,7 +520,7 @@ stargazer(mlogit_lowimp, mlogit_highimp, type = "text")
 ### Bei Abstimmungen mit einem grösseren Umverteilungsaspekt spielt das Einkommen eine grössere Rolle bei der Beteiligung am Urnengang.
 
 
-```{r}
+```{r message=FALSE, warning=FALSE}
 
 
 # 10.2	Sozialversicherungen
@@ -457,7 +558,7 @@ Compare highest earning person of household to other members that have less inco
 -->Especially look at adult children that still live with parents
 
 
-```{r}
+```{r message=FALSE, warning=FALSE}
 # TODO: can I just  define children by their age group (18-25) living with older age group (35-65)?
 # -->what about couples, shared flats with bigger age gaps? (right now I just ignore this)
 data_households <- data %>% 
@@ -516,5 +617,4 @@ stargazer(mlogit_household_low, mlogit_household_high, type = "text")
 ```
 
 
-### Should I also look at neighborhoods? It is possible for "Kleinquartiere" in the city SG
 

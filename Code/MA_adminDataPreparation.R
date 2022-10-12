@@ -12,6 +12,7 @@ setwd("/Users/alinelaurametzler/Documents/Universität/Master/Master Thesis/MA-
 getwd()
 
 # Read Data
+# data_adminold <- read.csv("./Data/Archiv/IndividualdatenSTISTAT_2010-2020_5818.csv") 
 data_admin <- read.csv("./Data/IndividualdatenSTISTAT_2010-2020/IndividualdatenSTISTAT_2010-2020_pa5818_20220818.csv") 
 # data_admin_old <- read.csv("./Data/Archiv/IndividualdatenSTISTAT_2010-2020_5818.csv") 
 
@@ -28,7 +29,6 @@ data_admin <- data_admin %>%
          abstimmungsmonat = as.integer(abstimmungsmonat)) %>% 
   mutate(steuer_tarif = as.factor(steuer_tarif)) %>% 
   filter(!is.na(id_ek))
-
 
 
 ############## Account for people who moved and then moved back #################
@@ -75,7 +75,8 @@ data_prep <- id_year %>%
   filter(bfsnr != 0) %>% 
   left_join(data_admin, by = c("id_ek", "abstimmungsjahr", "bfsnr"))
 
-
+rm(id_year)
+rm(data_admin)
 ########################  Missing tax data from moving ##########################
 
 # Impute tax data of previous year if tax from previous year is available
@@ -85,8 +86,23 @@ data_imp <- data_prep %>%
   arrange(id_ek, bfsnr, ID_move_change, abstimmungsjahr) %>% 
   # mutate(veranlagung_id_imputed = veranlagung_id) %>% 
   # fill(veranlagung_id_imputed, .direction = "down") %>%
+  mutate(steuer_tarif = case_when(
+    steuer_tarif == "alleinstehend/unverheiratet" ~ 1,
+    steuer_tarif == "verheiratet" ~ 2,
+    TRUE ~ NA_real_
+  ))  %>% 
   mutate(steuer_tarif_imputed = steuer_tarif) %>% 
   fill(steuer_tarif_imputed, .direction = "down") %>%
+  mutate(steuer_tarif = case_when(
+    steuer_tarif == 1 ~ "alleinstehend/unverheiratet",
+    steuer_tarif == 2 ~ "verheiratet",
+    TRUE ~ NA_character_
+  )) %>% 
+  mutate(steuer_tarif_imputed = case_when(
+    steuer_tarif_imputed == 1 ~ "alleinstehend/unverheiratet",
+    steuer_tarif_imputed == 2 ~ "verheiratet",
+    TRUE ~ NA_character_
+  )) %>% 
   mutate(anz_ki_u15_hh_imputed = anz_ki_u15_hh) %>% 
   fill(anz_ki_u15_hh_imputed, .direction = "down") %>%
   mutate(anz_ki_kinderabzug_imputed = anz_ki_kinderabzug) %>% 
@@ -103,6 +119,7 @@ data_imp <- data_prep %>%
     (is.na(steuerb_einkommen) & !is.na(steuerb_einkommen_imputed)) ~ 1
   ))
 
+rm(data_prep)
 
 ######################### Impute missing values in df ###########################
 # TODO: how should I account for the imputed values? They are very likely to be correct
@@ -112,6 +129,14 @@ data_imp <- data_prep %>%
 # TODO: impute age (but how, since we don't know birthday?)
 # -->should I just take last known age and not care whether people got a year older?
 data_imp2 <- data_imp %>% 
+  ungroup() %>% 
+  group_by(householdID_sw) %>%
+  mutate(householdID_sw_imp = as.numeric(cur_group_id())) %>% 
+  mutate(householdID_sw_imp = case_when(
+    householdID_sw_imp != 1 ~ householdID_sw_imp,
+    TRUE ~ NA_real_
+  )) %>% 
+  ungroup() %>% 
   group_by(id_ek, ID_move_change, bfsnr) %>% 
   arrange(id_ek, ID_move_change, abstimmungsjahr, abstimmungsmonat) %>% 
   mutate(sex_imp = case_when(
@@ -132,13 +157,23 @@ data_imp2 <- data_imp %>%
     aufenthaltsdaueringemeinde == "mehr als 10 Jahre" ~ 4,
     TRUE ~ NA_real_
   )) %>%
+  mutate(haushalttyp_sw_1_imp = case_when(
+    haushalttyp_sw_1 == "Privathaushalt" ~ 1,
+    haushalttyp_sw_1 == "Kollektivhaushalt" ~ 2,
+    haushalttyp_sw_1 == "Sammelhaushalt" ~ 3,
+    TRUE ~ NA_real_
+  )) %>% 
   fill(sex_imp, .direction = "updown") %>% 
   fill(konfession_imp, .direction = "updown") %>% 
   fill(residenz_imp, .direction = "updown") %>%
   fill(Geburtsstaat, .direction = "updown") %>% 
+  fill(householdID_sw_imp, .direction = "updown") %>% 
+  fill(haushalttyp_sw_1_imp, .direction = "updown") %>% 
+  fill(privathaushaltgroesse_sw, .direction = "updown") %>% 
   fill(anzahljahreingemeinde, .direction = "updown")
   
-
+# test <- data_imp2 %>% 
+#   select(abstimmungsjahr, abstimmungsmonat, id_ek, householdID_sw, householdID_sw_imp)
 
 ##### Make categories for numerical variables & define levels of variables #####
 # Age:
@@ -226,15 +261,67 @@ data_cat <- data_imp2 %>%
          Vermoegen_c = fct_relevel(Vermoegen_c, c("0-8'000.-","8'000-60'000.-","60'000-185'000.-","Über 185'000.-")))
 
 summary(data_cat)
+rm(data_imp, data_imp2)
 
 
-##################  Count of consecutively following votes ######################
+################ calculate weighted household income and wealth #################
+data_income <- data_cat %>% 
+  group_by(abstimmungsjahr, id_ek) %>% 
+  filter(abstimmungsmonat == max(abstimmungsmonat)) %>% 
+  ungroup() %>% 
+  select(abstimmungsjahr, id_ek, householdID_sw_imp, haushalttyp_sw_1_imp,privathaushaltgroesse_sw,
+         hh_anzahlstimmberechtigte, steuer_tarif_imputed, anz_ki_u15_hh_imputed,
+         anz_ki_kinderabzug_imputed, steuerb_einkommen_imputed, reinvermoegen_imputed,
+         massgebendesEinkommen_imputed) %>% 
+  group_by(abstimmungsjahr, householdID_sw_imp) %>% 
+  mutate(anz_pers_ue15 = privathaushaltgroesse_sw - anz_ki_u15_hh_imputed,
+         steuerb_einkommen_imputed = as.numeric(steuerb_einkommen_imputed),
+         reinvermoegen_imputed = as.numeric(reinvermoegen_imputed)) %>% 
+  mutate(steuerbEinkommen_gedeckelt = case_when(
+    steuerb_einkommen_imputed == 163200 ~ 1,
+    TRUE ~ 0
+  )) %>% 
+  mutate(reinvermoegen_gedeckelt = case_when(
+    reinvermoegen_imputed == 423417 ~ 1,
+    TRUE ~ 0
+  )) %>% 
+  mutate(steuerb_einkommen_imputed = case_when(
+    steuer_tarif_imputed == "verheiratet" ~ (steuerb_einkommen_imputed/1.5),
+    steuer_tarif_imputed == "alleinstehend/unverheiratet" ~ steuerb_einkommen_imputed,
+    TRUE ~ steuerb_einkommen_imputed
+  )) %>% 
+  mutate(reinvermoegen_imputed = case_when(
+    steuer_tarif_imputed == "verheiratet" ~ (reinvermoegen_imputed/1.5),
+    steuer_tarif_imputed == "alleinstehend/unverheiratet" ~ reinvermoegen_imputed,
+    TRUE ~ reinvermoegen_imputed
+  )) %>% 
+  mutate(steuerb_einkommen_imputed2 = case_when(
+    steuer_tarif_imputed == "verheiratet" ~ (0.5 * steuerb_einkommen_imputed),
+    steuer_tarif_imputed == "alleinstehend/unverheiratet" ~ steuerb_einkommen_imputed,
+    TRUE ~ steuerb_einkommen_imputed
+  )) %>% 
+  mutate(reinvermoegen_imputed2 = case_when(
+    steuer_tarif_imputed == "verheiratet" ~ 0.5 * reinvermoegen_imputed,
+    steuer_tarif_imputed == "alleinstehend/unverheiratet" ~ reinvermoegen_imputed,
+    TRUE ~ reinvermoegen_imputed
+  )) 
 
-data <- data_cat %>% 
-  arrange(id_ek, ID_move_change, abstimmungsjahr, abstimmungsmonat) %>% 
-  group_by(id_ek, ID_move_change) %>% 
-  dplyr::mutate(abst_reihe = row_number())
+datatest <- data_income %>% 
+  mutate(hhaequEinkommen = as.numeric((sum(steuerb_einkommen_imputed2)/(1 + (anz_pers_ue15-1)*0.5 + anz_ki_u15_hh_imputed*0.3))),
+         hhaequEinkommen =  case_when(
+    haushalttyp_sw_1_imp == 1 ~ hhaequEinkommen, 
+    haushalttyp_sw_1_imp == 2 ~ steuerb_einkommen_imputed2, # there is no household income for "Kollektivhaushalte"
+    haushalttyp_sw_1_imp == 3 ~ steuerb_einkommen_imputed2, # there is no household income for "Sammelhaushalte"
+    TRUE ~ NA_integer_
+  )) 
+  mutate(hhaequVermoegen = case_when(
+    haushalttyp_sw_1_imp == 1 ~ (sum(reinvermoegen_imputed2)/(1 + (anz_pers_ue15-1)*0.5 + anz_ki_u15_hh_imputed*0.3)),
+    haushalttyp_sw_1_imp == 2 ~ reinvermoegen_imputed2, # there is no household income for "Kollektivhaushalte"
+    haushalttyp_sw_1_imp == 3 ~ reinvermoegen_imputed2, # there is no household income for "Sammelhaushalte"
+    TRUE ~ NA_integer_
+  )) 
 
+rm(data_catmm)
 
 ##################### Create variable with type of voters #######################
 
