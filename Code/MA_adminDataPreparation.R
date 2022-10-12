@@ -28,7 +28,11 @@ data_admin <- data_admin %>%
          abstimmungsjahr = as.integer(abstimmungsjahr),
          abstimmungsmonat = as.integer(abstimmungsmonat)) %>% 
   mutate(steuer_tarif = as.factor(steuer_tarif)) %>% 
-  filter(!is.na(id_ek))
+  filter(!is.na(id_ek)) %>% 
+  select(-id_loganto, -historyMunicipalityID_swissTown_placeOfBirth, -cantonAbbreviation_swissTown_placeOfBirth,
+         -geburtsstaatregion, -haushalttyp_sw_2, -haushalttyp_sw_3, -haushalttyp_sw_4,
+         -haushalttyp_sw_5, -haushalttyp_sw_6, -quartiergruppen, -statquartiere, -Quartierverein,
+         -artstimmabgabe, -stimmabgabedatum)
 
 
 ############## Account for people who moved and then moved back #################
@@ -285,16 +289,7 @@ data_income <- data_cat %>%
     reinvermoegen_imputed == 423417 ~ 1,
     TRUE ~ 0
   )) %>% 
-  mutate(steuerb_einkommen_imputed = case_when(
-    steuer_tarif_imputed == "verheiratet" ~ (steuerb_einkommen_imputed/1.5),
-    steuer_tarif_imputed == "alleinstehend/unverheiratet" ~ steuerb_einkommen_imputed,
-    TRUE ~ steuerb_einkommen_imputed
-  )) %>% 
-  mutate(reinvermoegen_imputed = case_when(
-    steuer_tarif_imputed == "verheiratet" ~ (reinvermoegen_imputed/1.5),
-    steuer_tarif_imputed == "alleinstehend/unverheiratet" ~ reinvermoegen_imputed,
-    TRUE ~ reinvermoegen_imputed
-  )) %>% 
+  # Preparation for household income: all incomes in a household are added
   mutate(steuerb_einkommen_imputed2 = case_when(
     steuer_tarif_imputed == "verheiratet" ~ (0.5 * steuerb_einkommen_imputed),
     steuer_tarif_imputed == "alleinstehend/unverheiratet" ~ steuerb_einkommen_imputed,
@@ -304,22 +299,38 @@ data_income <- data_cat %>%
     steuer_tarif_imputed == "verheiratet" ~ 0.5 * reinvermoegen_imputed,
     steuer_tarif_imputed == "alleinstehend/unverheiratet" ~ reinvermoegen_imputed,
     TRUE ~ reinvermoegen_imputed
-  )) 
-
-datatest <- data_income %>% 
-  mutate(hhaequEinkommen = as.numeric((sum(steuerb_einkommen_imputed2)/(1 + (anz_pers_ue15-1)*0.5 + anz_ki_u15_hh_imputed*0.3))),
-         hhaequEinkommen =  case_when(
-    haushalttyp_sw_1_imp == 1 ~ hhaequEinkommen, 
+  )) %>% 
+  # Married people with shared taxation will be divided by 1.5 because they still
+  # have more money than a single person since many of the costs are shares
+  mutate(steuerb_einkommen_imputed = case_when(
+    steuer_tarif_imputed == "verheiratet" ~ (steuerb_einkommen_imputed/1.5),
+    steuer_tarif_imputed == "alleinstehend/unverheiratet" ~ steuerb_einkommen_imputed,
+    TRUE ~ steuerb_einkommen_imputed
+  )) %>% 
+  mutate(massgebendesEinkommen_imputed = case_when(
+    steuer_tarif_imputed == "verheiratet" ~ (massgebendesEinkommen_imputed/1.5),
+    steuer_tarif_imputed == "alleinstehend/unverheiratet" ~ massgebendesEinkommen_imputed,
+    TRUE ~ massgebendesEinkommen_imputed
+  )) %>% 
+  mutate(reinvermoegen_imputed = case_when(
+    steuer_tarif_imputed == "verheiratet" ~ (reinvermoegen_imputed/1.5),
+    steuer_tarif_imputed == "alleinstehend/unverheiratet" ~ reinvermoegen_imputed,
+    TRUE ~ reinvermoegen_imputed
+  )) %>% 
+  # Calculate household income
+  mutate(hhaequEinkommen =  case_when(
+    haushalttyp_sw_1_imp == 1 ~ (sum(steuerb_einkommen_imputed2)/(1 + (anz_pers_ue15-1)*0.5 + anz_ki_u15_hh_imputed*0.3)), 
     haushalttyp_sw_1_imp == 2 ~ steuerb_einkommen_imputed2, # there is no household income for "Kollektivhaushalte"
     haushalttyp_sw_1_imp == 3 ~ steuerb_einkommen_imputed2, # there is no household income for "Sammelhaushalte"
-    TRUE ~ NA_integer_
-  )) 
+    TRUE ~ NA_real_
+  )) %>% 
   mutate(hhaequVermoegen = case_when(
     haushalttyp_sw_1_imp == 1 ~ (sum(reinvermoegen_imputed2)/(1 + (anz_pers_ue15-1)*0.5 + anz_ki_u15_hh_imputed*0.3)),
     haushalttyp_sw_1_imp == 2 ~ reinvermoegen_imputed2, # there is no household income for "Kollektivhaushalte"
     haushalttyp_sw_1_imp == 3 ~ reinvermoegen_imputed2, # there is no household income for "Sammelhaushalte"
-    TRUE ~ NA_integer_
-  )) 
+    TRUE ~ NA_real_
+  )) %>% 
+  select(-steuerb_einkommen_imputed2, -reinvermoegen_imputed2)
 
 rm(data_catmm)
 
