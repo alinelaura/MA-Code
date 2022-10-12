@@ -179,105 +179,11 @@ data_imp2 <- data_imp %>%
 # test <- data_imp2 %>% 
 #   select(abstimmungsjahr, abstimmungsmonat, id_ek, householdID_sw, householdID_sw_imp)
 
-##### Make categories for numerical variables & define levels of variables #####
-# Age:
-# 1st Quintile: 18-30 years
-# 2nd Quintile: 31-45 years
-# 3rd Quintile: 46-60 years
-# 4th Quintile: 61-75 years
-# 5th Quintile: >75 years
-# 
-# Gender:
-# Male: 1
-# Female: 2
-# 
-# (Zivilstand: )
-# 
-# Konfession:
-# - Christliche Konfession
-# - Andere/Keine Konfession
-# 
-# Aufenthalt in Gemeinde:
-# - 0-10: Jahre
-# - >10 Jahre
-# 
-# Zugezogen:
-# - In CH Geboren
-# - Zugezogen
-# 
-# Einkommen (massgebendes Einkommen vs. Äquivalnezeinkommen:
-# 1st Quartile: 0-25'000.-
-# 2nd Quartile: 25'000-55'000.-
-# 3rd Quartile: 55'000-90'000.-
-# 4th Quartile: >90'000.-
-#              
-# Vermögen:
-# 1st Quartile: 0-8'000.-
-# 2nd Quartile: 8'000-60'000.-
-# 3rd Quartile: 60'000-185'000.-
-# 4th Quartile: >185'000.-
-
-
-data_cat <- data_imp2 %>% 
-  ungroup() %>% 
-  mutate(alter_c = as.factor(case_when(
-    alter_v <= 30 ~ "18-30-Jährige",
-    alter_v > 30 & alter_v <= 45 ~ "31-45-Jährige",
-    alter_v > 45 & alter_v <= 60  ~ "46-60-Jährige",
-    alter_v > 60 & alter_v <= 75 ~ "61-75-Jährige",
-    alter_v > 75 ~ "Über 75-Jährige"
-    ))) %>% 
-  mutate(sex_c = as.factor(case_when(
-    sex_imp == 1 ~ "Mann",
-    sex_imp == 2 ~ "Frau"
-  ))) %>%
-  mutate(konfession_c= as.factor(case_when(
-    konfession_imp %in% c(1, 2) ~ "Christliche Konfession",
-    konfession_imp == 3 ~ "Andere/keine Konfession"
-  ))) %>%
-  mutate(residenz10 = as.factor(case_when(
-    residenz_imp %in% c(0, 2, 3) ~ "0-10 Jahre",
-    residenz_imp == 4 ~ "Mehr als 10 Jahre"
-  ))) %>%
-  mutate(zugezogen = as.factor(case_when(
-    Geburtsstaat != 8100 ~ "CH zugezogen",
-    Geburtsstaat == 8100 ~ "In CH geboren",
-    is.na(Geburtsstaat) ~ NA_character_
-  ))) %>% 
-  mutate(mEinkommen_c = as.factor(case_when(
-    massgebendesEinkommen_imputed <= 25000 ~ "0-25'000.-",
-    massgebendesEinkommen_imputed > 25000 & massgebendesEinkommen_imputed <= 55000 ~ "25'000-55'000.-",
-    massgebendesEinkommen_imputed > 55000 & massgebendesEinkommen_imputed <= 90000 ~ "55'000-90'000.-",
-    massgebendesEinkommen_imputed > 90000 ~ "Über 90'000.-"
-  ))) %>% 
-  mutate(Vermoegen_c = as.factor(case_when(
-    reinvermoegen_imputed <= 8000 ~ "0-8'000.-",
-    reinvermoegen_imputed > 8000 & reinvermoegen_imputed <= 60000 ~ "8'000-60'000.-",
-    reinvermoegen_imputed > 60000 & reinvermoegen_imputed <= 185000 ~ "60'000-185'000.-",
-    reinvermoegen_imputed > 185000 ~ "Über 185'000.-"
-  ))) %>% 
-  mutate(alter_c = fct_relevel(alter_c, c("18-30-Jährige","31-45-Jährige","46-60-Jährige","61-75-Jährige","Über 75-Jährige")),
-         sex = fct_relevel(sex, c("Mann", "Frau")),
-         konfession_c = fct_relevel(konfession_c, c("Andere/keine Konfession", "Christliche Konfession")),
-         residenz10 = fct_relevel(residenz10, c("0-10 Jahre", "Mehr als 10 Jahre")),
-         zugezogen = fct_relevel(zugezogen, c("In CH geboren","CH zugezogen")),
-         mEinkommen_c = fct_relevel(mEinkommen_c, c("0-25'000.-","25'000-55'000.-","55'000-90'000.-","Über 90'000.-")),
-         Vermoegen_c = fct_relevel(Vermoegen_c, c("0-8'000.-","8'000-60'000.-","60'000-185'000.-","Über 185'000.-")))
-
-summary(data_cat)
-rm(data_imp, data_imp2)
-
 
 ################ calculate weighted household income and wealth #################
-data_income <- data_cat %>% 
-  group_by(abstimmungsjahr, id_ek) %>% 
-  filter(abstimmungsmonat == max(abstimmungsmonat)) %>% 
+data_income <- data_imp2 %>% 
   ungroup() %>% 
-  select(abstimmungsjahr, id_ek, householdID_sw_imp, haushalttyp_sw_1_imp,privathaushaltgroesse_sw,
-         hh_anzahlstimmberechtigte, steuer_tarif_imputed, anz_ki_u15_hh_imputed,
-         anz_ki_kinderabzug_imputed, steuerb_einkommen_imputed, reinvermoegen_imputed,
-         massgebendesEinkommen_imputed) %>% 
-  group_by(abstimmungsjahr, householdID_sw_imp) %>% 
+  group_by(abstimmungsdatum, householdID_sw_imp) %>% 
   mutate(anz_pers_ue15 = privathaushaltgroesse_sw - anz_ki_u15_hh_imputed,
          steuerb_einkommen_imputed = as.numeric(steuerb_einkommen_imputed),
          reinvermoegen_imputed = as.numeric(reinvermoegen_imputed)) %>% 
@@ -332,7 +238,104 @@ data_income <- data_cat %>%
   )) %>% 
   select(-steuerb_einkommen_imputed2, -reinvermoegen_imputed2)
 
-rm(data_catmm)
+
+##### Make categories for numerical variables & define levels of variables #####
+# Age:
+# 1st Quintile: 18-30 years
+# 2nd Quintile: 31-45 years
+# 3rd Quintile: 46-60 years
+# 4th Quintile: 61-75 years
+# 5th Quintile: >75 years
+# 
+# Gender:
+# Male: 1
+# Female: 2
+# 
+# (Zivilstand: )
+# 
+# Konfession:
+# - Christliche Konfession
+# - Andere/Keine Konfession
+# 
+# Aufenthalt in Gemeinde:
+# - 0-10: Jahre
+# - >10 Jahre
+# 
+# Zugezogen:
+# - In CH Geboren
+# - Zugezogen
+# 
+# Einkommen (massgebendes Einkommen vs. Äquivalnezeinkommen:
+# 1st Quartile: 0-25'000.-
+# 2nd Quartile: 25'000-55'000.-
+# 3rd Quartile: 55'000-90'000.-
+# 4th Quartile: >90'000.-
+#              
+# Vermögen:
+# 1st Quartile: 0-8'000.-
+# 2nd Quartile: 8'000-60'000.-
+# 3rd Quartile: 60'000-185'000.-
+# 4th Quartile: >185'000.-
+
+data_cat <- data_income %>% 
+  ungroup() %>% 
+  mutate(alter_c = as.factor(case_when(
+    alter_v <= 30 ~ "18-30-Jährige",
+    alter_v > 30 & alter_v <= 45 ~ "31-45-Jährige",
+    alter_v > 45 & alter_v <= 60  ~ "46-60-Jährige",
+    alter_v > 60 & alter_v <= 75 ~ "61-75-Jährige",
+    alter_v > 75 ~ "Über 75-Jährige"
+    ))) %>% 
+  mutate(sex_c = as.factor(case_when(
+    sex_imp == 1 ~ "Mann",
+    sex_imp == 2 ~ "Frau"
+  ))) %>%
+  mutate(konfession_c= as.factor(case_when(
+    konfession_imp %in% c(1, 2) ~ "Christliche Konfession",
+    konfession_imp == 3 ~ "Andere/keine Konfession"
+  ))) %>%
+  mutate(residenz10 = as.factor(case_when(
+    residenz_imp %in% c(0, 2, 3) ~ "0-10 Jahre",
+    residenz_imp == 4 ~ "Mehr als 10 Jahre"
+  ))) %>%
+  mutate(zugezogen = as.factor(case_when(
+    Geburtsstaat != 8100 ~ "CH zugezogen",
+    Geburtsstaat == 8100 ~ "In CH geboren",
+    is.na(Geburtsstaat) ~ NA_character_
+  ))) %>% 
+  mutate(mEinkommen_c = as.factor(case_when(
+    massgebendesEinkommen_imputed <= 25000 ~ "0-25'000.-",
+    massgebendesEinkommen_imputed > 25000 & massgebendesEinkommen_imputed <= 55000 ~ "25'000-55'000.-",
+    massgebendesEinkommen_imputed > 55000 & massgebendesEinkommen_imputed <= 90000 ~ "55'000-90'000.-",
+    massgebendesEinkommen_imputed > 90000 ~ "Über 90'000.-"
+  ))) %>% 
+  mutate(Vermoegen_c = as.factor(case_when(
+    reinvermoegen_imputed <= 8000 ~ "0-8'000.-",
+    reinvermoegen_imputed > 8000 & reinvermoegen_imputed <= 60000 ~ "8'000-60'000.-",
+    reinvermoegen_imputed > 60000 & reinvermoegen_imputed <= 185000 ~ "60'000-185'000.-",
+    reinvermoegen_imputed > 185000 ~ "Über 185'000.-"
+  ))) %>% 
+  mutate(alter_c = fct_relevel(alter_c, c("18-30-Jährige","31-45-Jährige","46-60-Jährige","61-75-Jährige","Über 75-Jährige")),
+         sex = fct_relevel(sex, c("Mann", "Frau")),
+         konfession_c = fct_relevel(konfession_c, c("Andere/keine Konfession", "Christliche Konfession")),
+         residenz10 = fct_relevel(residenz10, c("0-10 Jahre", "Mehr als 10 Jahre")),
+         zugezogen = fct_relevel(zugezogen, c("In CH geboren","CH zugezogen")),
+         mEinkommen_c = fct_relevel(mEinkommen_c, c("0-25'000.-","25'000-55'000.-","55'000-90'000.-","Über 90'000.-")),
+         Vermoegen_c = fct_relevel(Vermoegen_c, c("0-8'000.-","8'000-60'000.-","60'000-185'000.-","Über 185'000.-")))
+
+summary(data_cat)
+
+rm(data_imp, data_imp2)
+rm(data_income)
+
+##################  Count of consecutively following votes ######################
+
+data <- data_cat %>% 
+  arrange(id_ek, ID_move_change, abstimmungsjahr, abstimmungsmonat) %>% 
+  group_by(id_ek, ID_move_change) %>% 
+  dplyr::mutate(abst_reihe = row_number())
+
+rm(data_cat)
 
 ##################### Create variable with type of voters #######################
 
@@ -461,7 +464,10 @@ data_mlogit15 <- data_mlogit15 %>%
   
   
   #################### Write csv with df ready for analysis #####################
-  write.csv(data,"./Data/PreparedData/data.csv", row.names = FALSE)
-  write.csv(data_mlogit,"./Data/PreparedData/data_mlogit.csv", row.names = FALSE)
-  write.csv(data_mlogit15,"./Data/PreparedData/data_mlogit15.csv", row.names = FALSE)
+  # Save multiple objects
+  save(data, data_mlogit, data_mlogit15, file = "./Data/PreparedData/data.RData")
+  
+  # write.csv(data,"./Data/PreparedData/data.csv", row.names = FALSE)
+  # write.csv(data_mlogit,"./Data/PreparedData/data_mlogit.csv", row.names = FALSE)
+  # write.csv(data_mlogit15,"./Data/PreparedData/data_mlogit15.csv", row.names = FALSE)
   

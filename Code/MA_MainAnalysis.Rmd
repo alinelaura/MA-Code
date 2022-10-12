@@ -36,44 +36,47 @@ factorization again, since the csv doesn't read them as programmed before...
 ```{r message=FALSE, warning=FALSE}
 setwd("/Users/alinelaurametzler/Documents/Universität/Master/Master Thesis/MA-Code/")
 
-data <- read.csv("/Users/alinelaurametzler/Documents/Universität/Master/Master Thesis/MA-Code/Data/PreparedData/data.csv", encoding = "UTF-8") %>% 
-  mutate(beteiligt = as.factor(beteiligt)) %>%
-  mutate(beteiligt = fct_relevel(beteiligt, c("keine Stimmbeteiligung", "mit Stimmbeteiligung"))) %>% 
-   mutate(alter_c = fct_relevel(alter_c, c("18-30-Jährige","31-45-Jährige","46-60-Jährige","61-75-Jährige","Über 75-Jährige")),
-         sex = fct_relevel(sex, c("Mann", "Frau")),
-         konfession_c = fct_relevel(konfession_c, c("Andere/keine Konfession", "Christliche Konfession")),
-         residenz10 = fct_relevel(residenz10, c("0-10 Jahre", "Mehr als 10 Jahre")),
-         zugezogen = fct_relevel(zugezogen, c("In CH geboren","CH zugezogen")),
-         mEinkommen_c = fct_relevel(mEinkommen_c, c("0-25'000.-","25'000-55'000.-","55'000-90'000.-","Über 90'000.-")),
-         Vermoegen_c = fct_relevel(Vermoegen_c, c("0-8'000.-","8'000-60'000.-","60'000-185'000.-","Über 185'000.-")))
-
-data_mlogit <- read.csv("/Users/alinelaurametzler/Documents/Universität/Master/Master Thesis/MA-Code/Data/PreparedData/data_mlogit.csv", encoding = "UTF-8") %>% 
-  mutate(vote_type = as.factor(vote_type),
-         vote_type_det = as.factor(vote_type_det)) %>%
-  mutate(vote_type =  fct_relevel(vote_type, c("never voter", "selective voter", "always voter")),
-         vote_type_det =  fct_relevel(vote_type_det, c("never voter","seldom voter","occasional voter","frequent voter","always voter"))) %>% 
-   mutate(alter_c = fct_relevel(alter_c, c("18-30-Jährige","31-45-Jährige","46-60-Jährige","61-75-Jährige","Über 75-Jährige")),
-         sex = fct_relevel(sex, c("Mann", "Frau")),
-         konfession_c = fct_relevel(konfession_c, c("Andere/keine Konfession", "Christliche Konfession")),
-         residenz10 = fct_relevel(residenz10, c("0-10 Jahre", "Mehr als 10 Jahre")),
-         zugezogen = fct_relevel(zugezogen, c("In CH geboren","CH zugezogen")),
-         mEinkommen_c = fct_relevel(mEinkommen_c, c("0-25'000.-","25'000-55'000.-","55'000-90'000.-","Über 90'000.-")),
-         Vermoegen_c = fct_relevel(Vermoegen_c, c("0-8'000.-","8'000-60'000.-","60'000-185'000.-","Über 185'000.-")))
-
-
-data_mlogit15 <- read.csv("/Users/alinelaurametzler/Documents/Universität/Master/Master Thesis/MA-Code/Data/PreparedData/data_mlogit15.csv", encoding = "UTF-8")%>% 
-  mutate(vote_type = as.factor(vote_type),
-         vote_type_det = as.factor(vote_type_det)) %>%
-  mutate(vote_type =  fct_relevel(vote_type, c("never voter", "selective voter", "always voter")),
-         vote_type_det =  fct_relevel(vote_type_det, c("never voter","seldom voter","occasional voter","frequent voter","always voter"))) %>% 
-   mutate(alter_c = fct_relevel(alter_c, c("18-30-Jährige","31-45-Jährige","46-60-Jährige","61-75-Jährige","Über 75-Jährige")),
-         sex = fct_relevel(sex, c("Mann", "Frau")),
-         konfession_c = fct_relevel(konfession_c, c("Andere/keine Konfession", "Christliche Konfession")),
-         residenz10 = fct_relevel(residenz10, c("0-10 Jahre", "Mehr als 10 Jahre")),
-         zugezogen = fct_relevel(zugezogen, c("In CH geboren","CH zugezogen")),
-         mEinkommen_c = fct_relevel(mEinkommen_c, c("0-25'000.-","25'000-55'000.-","55'000-90'000.-","Über 90'000.-")),
-         Vermoegen_c = fct_relevel(Vermoegen_c, c("0-8'000.-","8'000-60'000.-","60'000-185'000.-","Über 185'000.-")))
-
+ # To load the data again
+load("/Users/alinelaurametzler/Documents/Universität/Master/Master Thesis/MA-Code/Data/PreparedData/data.RData")
+# 
+# data <- read.csv("/Users/alinelaurametzler/Documents/Universität/Master/Master Thesis/MA-Code/Data/PreparedData/data.csv", encoding = "UTF-8") %>% 
+#   mutate(beteiligt = as.factor(beteiligt)) %>%
+#   mutate(beteiligt = fct_relevel(beteiligt, c("keine Stimmbeteiligung", "mit Stimmbeteiligung"))) %>% 
+#    mutate(alter_c = fct_relevel(alter_c, c("18-30-Jährige","31-45-Jährige","46-60-Jährige","61-75-Jährige","Über 75-Jährige")),
+#          sex = fct_relevel(sex, c("Mann", "Frau")),
+#          konfession_c = fct_relevel(konfession_c, c("Andere/keine Konfession", "Christliche Konfession")),
+#          residenz10 = fct_relevel(residenz10, c("0-10 Jahre", "Mehr als 10 Jahre")),
+#          zugezogen = fct_relevel(zugezogen, c("In CH geboren","CH zugezogen")),
+#          mEinkommen_c = fct_relevel(mEinkommen_c, c("0-25'000.-","25'000-55'000.-","55'000-90'000.-","Über 90'000.-")),
+#          Vermoegen_c = fct_relevel(Vermoegen_c, c("0-8'000.-","8'000-60'000.-","60'000-185'000.-","Über 185'000.-")))
+# 
+# data_mlogit <- read.csv("/Users/alinelaurametzler/Documents/Universität/Master/Master Thesis/MA-Code/Data/PreparedData/data_mlogit.csv", encoding = "UTF-8") %>% 
+#   mutate(vote_type = as.factor(vote_type),
+#          vote_type_det = as.factor(vote_type_det)) %>%
+#   mutate(vote_type =  fct_relevel(vote_type, c("never voter", "selective voter", "always voter")),
+#          vote_type_det =  fct_relevel(vote_type_det, c("never voter","seldom voter","occasional voter","frequent voter","always voter"))) %>% 
+#    mutate(alter_c = fct_relevel(alter_c, c("18-30-Jährige","31-45-Jährige","46-60-Jährige","61-75-Jährige","Über 75-Jährige")),
+#          sex = fct_relevel(sex, c("Mann", "Frau")),
+#          konfession_c = fct_relevel(konfession_c, c("Andere/keine Konfession", "Christliche Konfession")),
+#          residenz10 = fct_relevel(residenz10, c("0-10 Jahre", "Mehr als 10 Jahre")),
+#          zugezogen = fct_relevel(zugezogen, c("In CH geboren","CH zugezogen")),
+#          mEinkommen_c = fct_relevel(mEinkommen_c, c("0-25'000.-","25'000-55'000.-","55'000-90'000.-","Über 90'000.-")),
+#          Vermoegen_c = fct_relevel(Vermoegen_c, c("0-8'000.-","8'000-60'000.-","60'000-185'000.-","Über 185'000.-")))
+# 
+# 
+# data_mlogit15 <- read.csv("/Users/alinelaurametzler/Documents/Universität/Master/Master Thesis/MA-Code/Data/PreparedData/data_mlogit15.csv", encoding = "UTF-8")%>% 
+#   mutate(vote_type = as.factor(vote_type),
+#          vote_type_det = as.factor(vote_type_det)) %>%
+#   mutate(vote_type =  fct_relevel(vote_type, c("never voter", "selective voter", "always voter")),
+#          vote_type_det =  fct_relevel(vote_type_det, c("never voter","seldom voter","occasional voter","frequent voter","always voter"))) %>% 
+#    mutate(alter_c = fct_relevel(alter_c, c("18-30-Jährige","31-45-Jährige","46-60-Jährige","61-75-Jährige","Über 75-Jährige")),
+#          sex = fct_relevel(sex, c("Mann", "Frau")),
+#          konfession_c = fct_relevel(konfession_c, c("Andere/keine Konfession", "Christliche Konfession")),
+#          residenz10 = fct_relevel(residenz10, c("0-10 Jahre", "Mehr als 10 Jahre")),
+#          zugezogen = fct_relevel(zugezogen, c("In CH geboren","CH zugezogen")),
+#          mEinkommen_c = fct_relevel(mEinkommen_c, c("0-25'000.-","25'000-55'000.-","55'000-90'000.-","Über 90'000.-")),
+#          Vermoegen_c = fct_relevel(Vermoegen_c, c("0-8'000.-","8'000-60'000.-","60'000-185'000.-","Über 185'000.-")))
+# 
 
 # source("MA_adminDataPreparation.R", local = knitr::knit_global())
 ```
