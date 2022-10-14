@@ -195,6 +195,11 @@ data_income <- data_imp2 %>%
     reinvermoegen_imputed == 423417 ~ 1,
     TRUE ~ 0
   )) %>% 
+  # massgebendes Einkommen cannot be below 0
+  mutate(massgebendesEinkommen_imputed = case_when(
+    massgebendesEinkommen_imputed < 0 ~ 0,
+    TRUE ~ massgebendesEinkommen_imputed
+  )) %>% 
   # Preparation for household income: all incomes in a household are added
   mutate(steuerb_einkommen_imputed2 = case_when(
     steuer_tarif_imputed == "verheiratet" ~ (0.5 * steuerb_einkommen_imputed),
@@ -464,7 +469,7 @@ data_mlogit15 <- data_mlogit15 %>%
   
   
   #################### Write csv with df ready for analysis #####################
-  # Save multiple objects
+  # Save datafiles
   save(data, data_mlogit, data_mlogit15, file = "./Data/PreparedData/data.RData")
   
   # write.csv(data,"./Data/PreparedData/data.csv", row.names = FALSE)

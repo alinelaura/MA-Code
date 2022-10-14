@@ -94,7 +94,8 @@ voxit_20102016 <- voxit_20102016 %>%
   ungroup() %>% 
   # Z-Standardization for later Join with voto
   mutate(difficulty = (difficulty - mean(difficulty))/sd(difficulty),
-         importance = (importance - mean(importance))/sd(importance))
+         importance = (importance - mean(importance))/sd(importance)) %>% 
+  mutate(dummy_voxit = 1)
 
 
 
@@ -242,7 +243,8 @@ voto_20162020 <- voto_826 %>%
             voto_948, voto_957, voto_972, voto_1072, voto_1151, voto_1225) %>% 
   # Z-Standardization for later Join with voto
   mutate(difficulty = (difficulty - mean(difficulty))/sd(difficulty),
-         importance = (importance - mean(importance))/sd(importance))
+         importance = (importance - mean(importance))/sd(importance)) %>% 
+  mutate(dummy_voxit = 0)
 
 rm(voto_826, voto_839, voto_851, voto_855, voto_872, voto_921, voto_938, 
    voto_948, voto_957, voto_972, voto_1072, voto_1151, voto_1225)
@@ -275,6 +277,12 @@ votes_data_short <- votes_data %>%
   filter(sg.bet == max(sg.bet)) %>% 
   filter(importance == max(importance))
 
-# Write csv for analysis
-write_csv(votes_data, "./Data/PreparedData/votes_data.csv")
-write_csv(votes_data_short, "./Data/PreparedData/votes_data_short.csv")
+
+# remove unnecessary files
+rm(swissvotes, voto_20162020, voxit_20102016, vote_survey_data)
+
+################################ Save datafiles #################################
+save(votes_data, votes_data_short, file = "./Data/PreparedData/data_votes.RData")
+
+# write_csv(votes_data, "./Data/PreparedData/votes_data.csv")
+# write_csv(votes_data_short, "./Data/PreparedData/votes_data_short.csv")
