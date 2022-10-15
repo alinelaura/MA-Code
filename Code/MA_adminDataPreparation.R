@@ -200,6 +200,10 @@ data_income <- data_imp2 %>%
     massgebendesEinkommen_imputed < 0 ~ 0,
     TRUE ~ massgebendesEinkommen_imputed
   )) %>% 
+  # Var für ungewichtetes Einkommen
+  mutate(steuerb_einkommen_imputed_noweights = steuerb_einkommen_imputed,
+         reinvermoegen_imputed_noweights = reinvermoegen_imputed,
+         massgebendesEinkommen_imputed_noweights = massgebendesEinkommen_imputed) %>% 
   # Preparation for household income: all incomes in a household are added
   mutate(steuerb_einkommen_imputed2 = case_when(
     steuer_tarif_imputed == "verheiratet" ~ (0.5 * steuerb_einkommen_imputed),

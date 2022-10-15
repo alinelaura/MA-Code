@@ -19,7 +19,7 @@ library(tidyverse)
 library(dplyr)
 library(forcats)
 library(ggplot2)
-
+library(forcats)
 ```
 
 # Create a custom theme for the plots
@@ -100,12 +100,12 @@ Share of voter types over the years (for SG city)
 ```{r message=FALSE, warning=FALSE}
 # From 2013 to 2020 always show percentage of voter types (nur für Stadt SG)
 
-votertypeYear <- function(year){
+votertypeYear <- function(year, community){
   
   # Find voter types for individuals (same process as in MA_adminDataPreparation.R)
   data_name <- data %>% 
     filter(abstimmungsjahr <= year) %>% 
-    filter(bfsnr == 3203) %>% 
+    filter(bfsnr == community) %>% 
     select(id_ek, abstimmungsjahr, abstimmungsmonat, id_ek, ID_move_change, beteiligt)%>% 
     arrange(id_ek, ID_move_change, abstimmungsjahr, abstimmungsmonat) %>% 
     group_by(id_ek, ID_move_change) %>% 
@@ -151,19 +151,35 @@ votertypeYear <- function(year){
       anz_teilnahme >= 7 & anz_teilnahme < 10 ~ "frequent voter",
       TRUE ~ "always voter"
     )) 
-   
+   data_name
+} 
+
+data_2013 <- votertypeYear(2013, 3203)
+data_2014 <- votertypeYear(2014, 3203)
+data_2015 <- votertypeYear(2015, 3203)
+data_2016 <- votertypeYear(2016, 3203)
+data_2017 <- votertypeYear(2017, 3203)
+data_2018 <- votertypeYear(2018, 3203)
+data_2019 <- votertypeYear(2019, 3203)
+data_2020 <- votertypeYear(2020, 3203)
+
+VoterTypeShare<- function(data_name){
+  
+  dataYear <- data_name
   # With the voter type of every individual, the share can be calculated
-  data_shares_t1 <- data_name %>% 
+  data_shares_t1 <- dataYear %>% 
     mutate(type = "vote_type") %>% 
     select(abstimmungsjahr, type, vote_type) %>% 
     group_by(abstimmungsjahr, type, vote_type) %>% 
     summarise(count = n()) %>% 
     ungroup() %>% 
     mutate(share = count/sum(count))
-  data_shares_t2 <- data_name %>% 
+  
+  data_shares_t2 <- dataYear %>% 
     mutate(type = "vote_type_det") %>% 
     select(abstimmungsjahr, type, vote_type_det) %>% 
-    group_by(abstimmungsjahr, type, vote_type_det) %>% 
+    dplyr::rename(vote_type = vote_type_det) %>% 
+    group_by(abstimmungsjahr, type, vote_type) %>% 
     summarise(count = n()) %>%
     ungroup() %>% 
     mutate(share = count/sum(count))
@@ -171,20 +187,20 @@ votertypeYear <- function(year){
   share_vote_type <- data_shares_t1 %>% 
     bind_rows(data_shares_t2)
   
-  rm(data_name, data_shares_t1, data_shares_t2)
+  rm(dataYear, data_shares_t1, data_shares_t2)
   
   # Print result
   share_vote_type
 }
 
-data_2013 <- votertypeYear(2013)
-data_2014 <- votertypeYear(2014)
-data_2015 <- votertypeYear(2015)
-data_2016 <- votertypeYear(2016)
-data_2017 <- votertypeYear(2017)
-data_2018 <- votertypeYear(2018)
-data_2019 <- votertypeYear(2019)
-data_2020 <- votertypeYear(2020)
+data_2013 <- VoterTypeShare(data_2013)
+data_2014 <- VoterTypeShare(data_2014)
+data_2015 <- VoterTypeShare(data_2015)
+data_2016 <- VoterTypeShare(data_2016)
+data_2017 <- VoterTypeShare(data_2017)
+data_2018 <- VoterTypeShare(data_2018)
+data_2019 <- VoterTypeShare(data_2019)
+data_2020 <- VoterTypeShare(data_2020)
 
 share_votertypes <- data_2013 %>% 
   bind_rows(data_2014, data_2015, data_2016, data_2017, data_2018, data_2019, data_2020)
@@ -208,23 +224,27 @@ plot_votertypes_share <- share_votertypes %>%
        y = "Kummulativer Anteil",
        fill = "Abstimmungstyp: ")
 plot_votertypes_share
+
+plot_votertypesdet_share <- share_votertypes %>% 
+  filter(type == "vote_type_det") %>% 
+  mutate(vote_type =  fct_relevel(vote_type, c("never voter","seldom voter","occasional voter","frequent voter","always voter"))) %>% 
+  ggplot(aes(x=abstimmungsjahr, y=share, fill=vote_type)) + 
+  geom_area(alpha=0.6 , size=0.2, colour="black") +
+  scale_y_continuous(labels = scales::percent) +
+  scale_fill_masterthesis()+
+  theme_masterthesis() +
+  labs(title = "Abstimmungstypen im Zeitverlauf",
+       subtitle = "Die Ergebnisse beschränken sich auf die 10 jüngsten Abstimmungen \nder Jahre für die Stadt St. Gallen",
+       x = "Abstimmungsjahr",
+       y = "Kummulativer Anteil",
+       fill = "Abstimmungstyp: ")
+plot_votertypesdet_share
 ```
 
-### Kumulative Anteil von Beteiligungshäufigkeit an Abstimmungen
+### Kumulativer Anteil von Beteiligungshäufigkeit an Abstimmungen
 
 ```{r message=FALSE, warning=FALSE}
-
-
-
-```
-
-
-```{r message=FALSE, warning=FALSE}
-summary(data_mlogit$vote_type)
-
-summary(data_mlogit$vote_type_det)
-
-data_table <- data_mlogit %>% 
+cummulative_shares_bet <- data_mlogit %>% 
   group_by(anz_teilnahme) %>% 
   summarise(count = n()) %>% 
   mutate(cum = cumsum(count)/sum(count)) %>% 
@@ -232,18 +252,91 @@ data_table <- data_mlogit %>%
          `Anzahl Individuen` = count,
          `Kummulative Häufigkeit` = cum)
 
-
-library(xtable)
-table <- xtable(data_table)
+# library(xtable)
+# table <- xtable(cummulative_shares_bet)
 # print(table)
-
-
 library(reactable)
-reactable(data_table, 
+reactable(cummulative_shares_bet, 
           defaultPageSize = 15,
           columns = list(`Kummulative Häufigkeit` = colDef(format = colFormat(percent = TRUE, digits = 1))))
 
 ```
+
+### Distribution of income and wealth in the voter type groups
+
+
+```{r message=FALSE, warning=FALSE}
+income_dist_votertypes <- data_mlogit %>% 
+  filter(!is.na(steuer_tarif_imputed)) %>% 
+  ggplot(aes(x = massgebendesEinkommen_imputed, group = vote_type, fill = vote_type)) +
+  geom_density(adjust = 1.5, alpha = .4) +
+  facet_wrap(~ steuer_tarif_imputed) +
+  scale_fill_masterthesis()+
+  theme_masterthesis()
+income_dist_votertypes
+
+wealth_dist_votertypes <- data_mlogit %>% 
+  filter(reinvermoegen_imputed >= -20000) %>% 
+  ggplot(aes(x = reinvermoegen_imputed, group = vote_type, fill = vote_type)) +
+  geom_density(adjust = 1.5, alpha = .4) +
+  facet_wrap(~ steuer_tarif_imputed) +
+  scale_fill_masterthesis()+
+  theme_masterthesis()
+wealth_dist_votertypes
+
+hhincome_dist_votertypes <- data_mlogit %>% 
+  filter(!is.na(steuer_tarif_imputed)) %>% 
+  filter(hhaequEinkommen < 200000) %>%          
+  ggplot(aes(x = hhaequEinkommen, group = vote_type, fill = vote_type)) +
+  geom_density(adjust = 1.5, alpha = .4) +
+  facet_wrap(~ steuer_tarif_imputed) +
+  scale_fill_masterthesis()+
+  theme_masterthesis()
+hhincome_dist_votertypes
+```
+
+Haben die Voter Types statistisch signifikante Unterschiede bezgl. Einkommen und Vermögen?
+
+-->Since tax variables are truncated at the top I use the median for the t-test
+
+```{r message=FALSE, warning=FALSE}
+
+data_mlogit %>% 
+  group_by(steuer_tarif_imputed, vote_type) %>%  
+  filter(!is.na(steuer_tarif_imputed)) %>% 
+  summarise(Eink_Median = median(steuerb_einkommen_imputed, na.rm = TRUE),
+            HHaequ_Median = median(hhaequEinkommen, na.rm = TRUE),
+            Verm_Median = median(reinvermoegen_imputed, na.rm = TRUE),
+            HHVerm_Median = median(hhaequVermoegen, na.rm = TRUE),
+            Eink_Mean = mean(steuerb_einkommen_imputed, na.rm = TRUE),
+            HHaequ_Mean = mean(hhaequEinkommen, na.rm = TRUE),
+            Verm_Mean = mean(reinvermoegen_imputed, na.rm = TRUE),
+            HHVerm_Mean = mean(hhaequVermoegen, na.rm = TRUE))
+
+
+# Are the differences statistically significant?
+# Should I group it by steuer_tarif?
+# Evtl with median instead of mean.. There the truncation would not matter
+
+# Answer Stackoverflow:
+# You can use the wilcoxons igned-rank-test to calculate the statistical significance of paired data 
+# given the null hypothesis that the median difference between two paired variables is zero
+# https://statsandr.com/blog/wilcoxon-test-in-r-how-to-compare-2-groups-under-the-non-normality-assumption/
+data_verhtarif <- data_mlogit %>% 
+  filter(steuer_tarif_imputed == "verheiratet") %>% 
+  filter(vote_type %in% c("never voter", "always voter"))
+data_ledigtarif <- data_mlogit %>% 
+  filter(steuer_tarif_imputed == "alleinstehend/unverheiratet") %>% 
+  filter(vote_type %in% c("selective voter", "always voter"))
+
+
+test <- wilcox.test(data_verhtarif$steuerb_einkommen_imputed ~ data_verhtarif$vote_type,
+                    alternative = "less")
+test
+
+```
+
+
 
 ### Scatter Plot Einkommen und Anz. Teilnahmen bei 10 Abstimmungen
 
