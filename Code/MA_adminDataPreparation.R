@@ -167,12 +167,20 @@ data_imp2 <- data_imp %>%
     haushalttyp_sw_1 == "Sammelhaushalt" ~ 3,
     TRUE ~ NA_real_
   )) %>% 
+  mutate(generationen_sw_imp = case_when(
+    generationen_sw == "Eingenerationenhaushalt" ~ 1,
+    generationen_sw == "Zwei Generationen" ~ 2,
+    generationen_sw == "Drei Generationen" ~ 3,
+    generationen_sw == "Vier Generationen" ~ 4,
+    TRUE ~ NA_real_
+  )) %>% 
   fill(sex_imp, .direction = "updown") %>% 
   fill(konfession_imp, .direction = "updown") %>% 
   fill(residenz_imp, .direction = "updown") %>%
   fill(Geburtsstaat, .direction = "updown") %>% 
   fill(householdID_sw_imp, .direction = "updown") %>% 
   fill(haushalttyp_sw_1_imp, .direction = "updown") %>% 
+  fill(generationen_sw_imp, .direction = "updown") %>% 
   fill(privathaushaltgroesse_sw, .direction = "updown") %>% 
   fill(anzahljahreingemeinde, .direction = "updown")
   
