@@ -225,6 +225,7 @@ plot_votertypes_share <- share_votertypes %>%
        y = "Kummulativer Anteil",
        fill = "Abstimmungstyp: ")
 plot_votertypes_share
+ggsave("/Users/alinelaurametzler/Documents/Universität/Master/Master Thesis/MA-Code/Output/0_plot_votertypes_share.png")
 
 plot_votertypesdet_share <- share_votertypes %>% 
   filter(type == "vote_type_det") %>% 
@@ -240,6 +241,7 @@ plot_votertypesdet_share <- share_votertypes %>%
        y = "Kummulativer Anteil",
        fill = "Abstimmungstyp: ")
 plot_votertypesdet_share
+ggsave("/Users/alinelaurametzler/Documents/Universität/Master/Master Thesis/MA-Code/Output/0_plot_votertypesdet_share.png")
 ```
 
 ### Kumulativer Anteil von Beteiligungshäufigkeit an Abstimmungen
@@ -275,6 +277,7 @@ income_dist_votertypes <- data_mlogit %>%
   scale_fill_masterthesis()+
   theme_masterthesis()
 income_dist_votertypes
+ggsave("/Users/alinelaurametzler/Documents/Universität/Master/Master Thesis/MA-Code/Output/1_income_dist_votertypes.png")
 
 wealth_dist_votertypes <- data_mlogit %>% 
   filter(reinvermoegen_imputed >= -20000) %>% 
@@ -284,6 +287,7 @@ wealth_dist_votertypes <- data_mlogit %>%
   scale_fill_masterthesis()+
   theme_masterthesis()
 wealth_dist_votertypes
+ggsave("/Users/alinelaurametzler/Documents/Universität/Master/Master Thesis/MA-Code/Output/1_wealth_dist_votertypes.png")
 
 hhincome_dist_votertypes <- data_mlogit %>% 
   filter(!is.na(steuer_tarif_imputed)) %>% 
@@ -294,6 +298,7 @@ hhincome_dist_votertypes <- data_mlogit %>%
   scale_fill_masterthesis()+
   theme_masterthesis()
 hhincome_dist_votertypes
+ggsave("/Users/alinelaurametzler/Documents/Universität/Master/Master Thesis/MA-Code/Output/1_hhincome_dist_votertypes.png")
 ```
 
 Haben die Voter Types statistisch signifikante Unterschiede bezgl. Einkommen und Vermögen?
@@ -314,6 +319,7 @@ data_mlogit %>%
             Verm_Mean = mean(reinvermoegen_imputed, na.rm = TRUE),
             HHVerm_Mean = mean(hhaequVermoegen, na.rm = TRUE))
 
+# TODO: Table
 
 # Are the differences statistically significant?
 # Should I group it by steuer_tarif?
@@ -539,7 +545,7 @@ plot_predprob <- ggarrange(plot_income, plot_wealth, ncol=2, common.legend = TRU
 plot_predprob
 
 # save Plot 
-ggsave("/Users/alinelaurametzler/Documents/Universität/Master/Master Thesis/MA-Code/Output/plot_predprob.png",
+ggsave("/Users/alinelaurametzler/Documents/Universität/Master/Master Thesis/MA-Code/Output/2_plot_predprob.png",
        width = 20, height = 20, units = "cm")
 
 ```
@@ -572,6 +578,7 @@ scatter_income <- data_mlogit %>%
   scale_colour_masterthesis() +
   theme_masterthesis() 
 scatter_income
+ggsave("/Users/alinelaurametzler/Documents/Universität/Master/Master Thesis/MA-Code/Output/4_scatter_income.png")
 
 
 scatter_hhaequEinkommen <- data_mlogit %>% 
@@ -584,6 +591,7 @@ scatter_hhaequEinkommen <- data_mlogit %>%
   scale_colour_masterthesis() +
   theme_masterthesis() 
 scatter_hhaequEinkommen
+ggsave("/Users/alinelaurametzler/Documents/Universität/Master/Master Thesis/MA-Code/Output/4_scatter_hhaequEinkommen.png")
 ```
 
 make sure that in the following 1-2 years income doesn't rise again, so we can exclude a short term 
@@ -723,14 +731,14 @@ plot_did_incometo0 <- change_did("ifchange_income", "ifnochange_eink", -100, 25)
        y = "Voter turnout estimate",
        title = "Effect of Change from some Income to 0")
 plot_did_incometo0
+ggsave("/Users/alinelaurametzler/Documents/Universität/Master/Master Thesis/MA-Code/Output/4_plot_did_incometo0.png")
 
 plot_did_wealthto0 <- change_did("ifchange_wealth", "ifnochange_verm", 25, -100) +
   labs(x = "Years before and after income drop",
        y = "Voter turnout estimate",
        title = "Effect of Change from some Wealth to 0")
 plot_did_wealthto0
-
-
+ggsave("/Users/alinelaurametzler/Documents/Universität/Master/Master Thesis/MA-Code/Output/4_plot_did_wealthto0.png")
 ```
 
 
@@ -849,44 +857,134 @@ data_households <- data %>%
     ant_older_per_vote <= 0.01 ~ "Keine Eltern partizipieren",
     TRUE ~ NA_character_
   )) %>%
-  select(-sum_older_pers_vote)
+  mutate(older_pers_vote = as.factor(older_pers_vote),
+         older_pers_vote = fct_relevel(older_pers_vote, c("Keine Eltern partizipieren", 
+                                                          "Teils der Eltern partizipieren", 
+                                                          "Alle Eltern partizipieren"))) %>% 
+  select(-sum_older_pers_vote) %>% 
+  # all measures in 1000.- Fr.
+  mutate(steuerb_einkommen_imputed1000k = steuerb_einkommen_imputed/1000,
+         massgebendesEinkommen_imputed1000k = massgebendesEinkommen_imputed/1000,
+         reinvermoegen_imputed1000k = reinvermoegen_imputed/1000,
+         hhaequEinkommen1000k = hhaequEinkommen/1000,
+         hhaequVermoegen1000k = hhaequVermoegen/1000,
+         income_older1000k = income_older/1000,
+         wealth_older1000k = wealth_older/1000)
   
 # only keep younger gen and take one random vote date per individual
 data_households_young <- data_households %>% 
   filter(young_pers == 1) %>% 
-  ungroup() %>%
-  group_by(id_ek) %>%
-  # take one random vote per Individual
-  sample_n(1)
-
-
-# households with low income of parents
-data_households_low <- data_households %>% 
-  ungroup() %>% 
-  filter(quantile(income_older, 0.25) >= income_older) 
-
-mlogit_household_low <- multinom(beteiligt ~  alter_c + sex_c + konfession_c + residenz10 + zugezogen + income_older+ mEinkommen_c + Vermoegen_c,
-                   data = data_households_low)
+  mutate(householdID = as.character(householdID_sw_imp)) %>% 
+  ungroup() 
+  # group_by(id_ek) %>%
+  # # take one random vote per Individual
+  # # TODO: Oder Individuum Effekt und Familien Effekt wie bei Goldberg & Sciarini 2021
+  # sample_n(1)
 
 
 
-# households with high income of parents
-data_households_high <- data_households %>% 
-  filter(quantile(income_older, 0.75) <= income_older) 
 
-mlogit_household_high <- multinom(beteiligt ~  alter_c + sex_c + konfession_c + residenz10 + zugezogen + income_older + mEinkommen_c + Vermoegen_c,
-                   data = data_households_high)
 
-stargazer(mlogit_household_low, mlogit_household_high, type = "text")
+# Regression analysis ->Multilevel analysis
+library(lme4)
+
+# empty model for icc
+model_young_empty <- glmer(beteiligt_num ~  (1 | householdID) , 
+                           family = binomial(link = "logit"),
+                           data = data_households_young)
+
+# model 1: only level 1
+model_young_ind <- glmer(beteiligt_num ~ alter_v + sex_c + konfession_c + residenz10 + zugezogen +
+                           steuerb_einkommen_imputed1000k + reinvermoegen_imputed1000k + (1 | householdID), 
+                         family = binomial(link = "logit"),
+                         data = data_households_young)
+
+
+# model 2: only level 2
+model_young_hh <- glmer(beteiligt_num ~ income_older1000k + wealth_older1000k + older_pers_vote + (1 | householdID), 
+                        family = binomial(link = "logit"),
+                        data = data_households_young)
+
+
+# model 3: level 1 & 2
+model_young_ind_hh <- glmer(beteiligt_num ~ alter_v + sex_c + konfession_c + residenz10 + zugezogen +
+                              steuerb_einkommen_imputed1000k + reinvermoegen_imputed1000k + 
+                              income_older1000k + wealth_older1000k + older_pers_vote + (1 | householdID), 
+                           family = binomial(link = "logit"),
+                           data = data_households_young)
+
+
+# All models together
+stargazer(model_young_empty, model_young_ind, model_young_hh, model_young_ind_hh, type = "text")
 
 ```
 
 
 ## H6: Empfundene Relevanz, Komplexität und Aufmerksamkeit der Abstimmung
 
+Multilevel Model with binary dependent variable and cross-level interaction effect
+https://rpubs.com/corey_sparks/70812
+
+
+Cross level interaction effect
+Here, I show the model for a cross-level interaction. This model fits an interaction term between (at least) one individual level variable and a group level variable. This allows you to ask very informative questions regarding individuals within specific contexts. As a good rule, always *z-score your higher level predictors BEFORE MERGINGE TO THE INDIVIDUAL DATA* in order to ease interpretation of these effects. In this example, I as the reserach question, “Do Racial/ethnic minority groups, livinging in high poverty areas face an added disadvantage in BMI, compared to whites?”
+
+
+
 ```{r message=FALSE, warning=FALSE}
 
+ # Load the the three data sets from MA_adminDataPreparation.R
+load("/Users/alinelaurametzler/Documents/Universität/Master/Master Thesis/MA-Code/Data/PreparedData/data_votes.RData")
 
+library(lubridate)
+data <- data %>% 
+  mutate(datum = as.Date(ymd(datum)))
+
+
+# join with admin. data
+turnout_lowimp <- votes_data_short %>% 
+  left_join(data, by = "datum")
+
+test <- data %>% 
+  select(datum) %>% 
+  arrange(datum) 
+unique(test$datum)
+
+
+unique(votes_data_short$datum)
+# multinomial logit model
+mlogit_lowimp <- multinom(beteiligt ~ alter_c + sex_c + konfession_c + residenz10 + zugezogen + mEinkommen_c + Vermoegen_c,
+                   data = turnout_lowimp)
+mlogit_highimp <- multinom(beteiligt ~ alter_c + sex_c + konfession_c + residenz10 + zugezogen + mEinkommen_c + Vermoegen_c,
+                   data = turnout_highimp)
+
+stargazer(mlogit_lowimp, mlogit_highimp, type = "text")
+
+
+# 10.2	Sozialversicherungen
+# 6.1	Steuerwesen
+
+votes_umverteilung <- votes %>% 
+  filter(d1e2 %in% c(6.1, 10.2))
+
+votes_steuern <- votes %>% 
+  filter(d1e2 == 6.1)
+
+
+# join with admin. data
+turnout_umverteilung<- votes_umverteilung %>% 
+  left_join(data, by = "datum")
+turnout_steuern <- votes_steuern %>% 
+  left_join(data, by = "datum")
+
+
+# multinomial logit model
+mlogit_umverteilung <- multinom(beteiligt ~ alter_c + sex_c + konfession_c + residenz10 + zugezogen + mEinkommen_c + Vermoegen_c,
+                   data = turnout_umverteilung)
+mlogit_steuern <- multinom(beteiligt ~ alter_c + sex_c + konfession_c + residenz10 + zugezogen + mEinkommen_c + Vermoegen_c,
+                   data = turnout_steuern)
+
+stargazer(mlogit_umverteilung, mlogit_steuern, type = "text")
 
 ```
 

@@ -259,8 +259,20 @@ codes_key <- read.csv("./Data/VOX_Voto/codes_swissvotes_vox_voto.csv", sep = ";"
   mutate(datum = ymd(datum)) %>% 
   select(-titel_kurz_d)
 
+
 vote_survey_data <- vote_survey_data %>% 
-  left_join(codes_key, by = c("vote_nr", "datum"))
+  left_join(codes_key, by = c("vote_nr", "datum")) 
+
+# Add empty row for 2020-11-29
+last_vote <- data.frame(matrix((nrow=NA), ncol = ncol(vote_survey_data)))
+names(last_vote) <- names(vote_survey_data)
+last_vote <- last_vote %>% 
+  rbind(NA) %>% 
+  mutate(datum = c(ymd("2020-11-29"), ymd("2020-11-29")),
+         anr = c(636, 637))
+
+vote_survey_data <- vote_survey_data %>% 
+  bind_rows(last_vote)
   
 rm(codes_key)
 ############################ Join Voxit & Swissvotes ###########################
@@ -274,12 +286,18 @@ votes_data <- swissvotes %>%
 # same turnout then filter later by mean perceived relevance)
 votes_data_short <- votes_data %>% 
   group_by(datum) %>% 
-  filter(sg.bet == max(sg.bet)) %>% 
-  filter(importance == max(importance))
+  filter(sg.bet == max(sg.bet, na.rm = TRUE)) %>%
+  arrange(datum,anr) %>%
+  #Identify unique elements
+  mutate(NUnique=n_distinct(anr)) %>% 
+  filter(case_when(NUnique > 1 ~ importance == max(importance, na.rm = TRUE), 
+                   T ~ sg.bet == max(sg.bet, na.rm = TRUE)) 
+  ) %>% 
+  select(-NUnique)
 
 
 # remove unnecessary files
-rm(swissvotes, voto_20162020, voxit_20102016, vote_survey_data)
+rm(swissvotes, voto_20162020, voxit_20102016, vote_survey_data, last_vote)
 
 ################################ Save datafiles #################################
 save(votes_data, votes_data_short, file = "./Data/PreparedData/data_votes.RData")

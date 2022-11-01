@@ -34,11 +34,16 @@ data_admin <- data_admin %>%
          -haushalttyp_sw_5, -haushalttyp_sw_6, -quartiergruppen, -statquartiere, -Quartierverein,
          -artstimmabgabe, -stimmabgabedatum) %>% 
   mutate(datum = as.character(ymd(datum)))  %>%
-  # only keep Volksabstimmungen
-  filter(!datum %in% c("2011-05-15", "2011-10-23", "2011-11-27", "2012-04-29", "2014-09-29",
-                       "2015-10-18", "2015-11-15", "2019-03-10", "2019-10-20", "2019-11-17", 
-                       "2020-03-08", "2020-04-19"))
-
+  # in SG Abstimmungsdatum "2014-09-29", aber eigentlich war Urnengang am "2014-09-28"
+  mutate(datum = case_when(
+    datum == "2014-09-29" ~ "2014-09-28",
+    TRUE ~ datum
+  )) %>% 
+  # only keep Volksabstimmungen 2014-09-28
+  filter(!datum %in% c("2011-05-15", "2011-10-23", "2011-11-27", "2012-04-29", 
+                       "2015-10-18", "2015-11-15", "2019-03-10", "2019-10-20", 
+                       "2019-11-17", "2020-03-08", "2020-04-19")) %>% 
+  mutate(datum = as.Date(ymd(datum))) 
 # data_date <- data_admin2 %>% 
 #   select(abstimmungsjahr, abstimmungsmonat, datum) %>% 
 #   arrange(abstimmungsjahr, abstimmungsmonat) %>% 
