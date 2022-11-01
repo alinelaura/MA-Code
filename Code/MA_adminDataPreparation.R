@@ -32,8 +32,29 @@ data_admin <- data_admin %>%
   select(-id_loganto, -historyMunicipalityID_swissTown_placeOfBirth, -cantonAbbreviation_swissTown_placeOfBirth,
          -geburtsstaatregion, -haushalttyp_sw_2, -haushalttyp_sw_3, -haushalttyp_sw_4,
          -haushalttyp_sw_5, -haushalttyp_sw_6, -quartiergruppen, -statquartiere, -Quartierverein,
-         -artstimmabgabe, -stimmabgabedatum)
+         -artstimmabgabe, -stimmabgabedatum) %>% 
+  mutate(datum = as.character(ymd(datum)))  %>%
+  # only keep Volksabstimmungen
+  filter(!datum %in% c("2011-05-15", "2011-10-23", "2011-11-27", "2012-04-29", "2014-09-29",
+                       "2015-10-18", "2015-11-15", "2019-03-10", "2019-10-20", "2019-11-17", 
+                       "2020-03-08", "2020-04-19"))
 
+# data_date <- data_admin2 %>% 
+#   select(abstimmungsjahr, abstimmungsmonat, datum) %>% 
+#   arrange(abstimmungsjahr, abstimmungsmonat) %>% 
+#   mutate(datum = ymd(datum)) %>% 
+#   unique()
+# 
+# codes_key <- read.csv("./Data/VOX_Voto/codes_swissvotes_vox_voto.csv", sep = ";") %>% 
+#   mutate(datum = ymd(datum)) %>% 
+#   select(-titel_kurz_d)
+# 
+# data_date <- data_date %>% 
+#   left_join(codes_key, by = c("datum")) 
+# data_datena <- data_date %>% 
+#   dplyr::filter(is.na(anr)) %>% 
+#   select(datum)
+# as.list(data_datena)
 
 ############## Account for people who moved and then moved back #################
 
@@ -218,6 +239,11 @@ data_income <- data_imp2 %>%
     steuer_tarif_imputed == "alleinstehend/unverheiratet" ~ steuerb_einkommen_imputed,
     TRUE ~ steuerb_einkommen_imputed
   )) %>% 
+  mutate(massgebendesEinkommen_imputed2 = case_when(
+    steuer_tarif_imputed == "verheiratet" ~ (0.5 * massgebendesEinkommen_imputed),
+    steuer_tarif_imputed == "alleinstehend/unverheiratet" ~ massgebendesEinkommen_imputed,
+    TRUE ~ massgebendesEinkommen_imputed
+  )) %>% 
   mutate(reinvermoegen_imputed2 = case_when(
     steuer_tarif_imputed == "verheiratet" ~ 0.5 * reinvermoegen_imputed,
     steuer_tarif_imputed == "alleinstehend/unverheiratet" ~ reinvermoegen_imputed,
@@ -243,17 +269,24 @@ data_income <- data_imp2 %>%
   # Calculate household income
   mutate(hhaequEinkommen =  case_when(
     haushalttyp_sw_1_imp == 1 ~ (sum(steuerb_einkommen_imputed2)/(1 + (anz_pers_ue15-1)*0.5 + anz_ki_u15_hh_imputed*0.3)), 
-    haushalttyp_sw_1_imp == 2 ~ steuerb_einkommen_imputed2, # there is no household income for "Kollektivhaushalte"
-    haushalttyp_sw_1_imp == 3 ~ steuerb_einkommen_imputed2, # there is no household income for "Sammelhaushalte"
+    haushalttyp_sw_1_imp == 2 ~ steuerb_einkommen_imputed, # there is no household income for "Kollektivhaushalte"
+    haushalttyp_sw_1_imp == 3 ~ steuerb_einkommen_imputed, # there is no household income for "Sammelhaushalte"
+    TRUE ~ NA_real_
+  )) %>% 
+  mutate(hhaequmassgEinkommen =  case_when(
+    haushalttyp_sw_1_imp == 1 ~ (sum(massgebendesEinkommen_imputed2)/(1 + (anz_pers_ue15-1)*0.5 + anz_ki_u15_hh_imputed*0.3)), 
+    haushalttyp_sw_1_imp == 2 ~ massgebendesEinkommen_imputed, # there is no household income for "Kollektivhaushalte"
+    haushalttyp_sw_1_imp == 3 ~ massgebendesEinkommen_imputed, # there is no household income for "Sammelhaushalte"
     TRUE ~ NA_real_
   )) %>% 
   mutate(hhaequVermoegen = case_when(
     haushalttyp_sw_1_imp == 1 ~ (sum(reinvermoegen_imputed2)/(1 + (anz_pers_ue15-1)*0.5 + anz_ki_u15_hh_imputed*0.3)),
-    haushalttyp_sw_1_imp == 2 ~ reinvermoegen_imputed2, # there is no household income for "Kollektivhaushalte"
-    haushalttyp_sw_1_imp == 3 ~ reinvermoegen_imputed2, # there is no household income for "Sammelhaushalte"
+    haushalttyp_sw_1_imp == 2 ~ reinvermoegen_imputed, # there is no household income for "Kollektivhaushalte"
+    haushalttyp_sw_1_imp == 3 ~ reinvermoegen_imputed, # there is no household income for "Sammelhaushalte"
     TRUE ~ NA_real_
-  )) %>% 
-  select(-steuerb_einkommen_imputed2, -reinvermoegen_imputed2)
+  )) 
+  # %>% 
+  # select(-steuerb_einkommen_imputed2, -reinvermoegen_imputed2)
 
 
 ##### Make categories for numerical variables & define levels of variables #####

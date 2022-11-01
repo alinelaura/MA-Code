@@ -8,7 +8,7 @@ output:
 ---
 
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE)
+# knitr::opts_chunk$set(echo = TRUE)
 ```
 
 
@@ -87,8 +87,9 @@ Data is read and prepared in separate file. The variable for the type of voter i
 ```{r message=FALSE, warning=FALSE}
 setwd("/Users/alinelaurametzler/Documents/Universität/Master/Master Thesis/MA-Code/")
 
- # Load the data again
+ # Load the the three data sets from MA_adminDataPreparation.R
 load("/Users/alinelaurametzler/Documents/Universität/Master/Master Thesis/MA-Code/Data/PreparedData/data.RData")
+
 
 # source("MA_adminDataPreparation.R", local = knitr::knit_global())
 ```
@@ -351,11 +352,11 @@ library(glm.predict)
 library(stargazer)
 
 data_mlogit_h2 <- data_mlogit %>% 
-  mutate(steuerb_einkommen_imputed = steuerb_einkommen_imputed/1000,
-         massgebendesEinkommen_imputed = massgebendesEinkommen_imputed/1000,
-         reinvermoegen_imputed = reinvermoegen_imputed/1000,
-         hhaequEinkommen = hhaequEinkommen/1000,
-         hhaequVermoegen = hhaequVermoegen/1000) %>% 
+  mutate(steuerb_einkommen_imputed1000k = steuerb_einkommen_imputed/1000,
+         massgebendesEinkommen_imputed1000k = massgebendesEinkommen_imputed/1000,
+         reinvermoegen_imputed1000k = reinvermoegen_imputed/1000,
+         hhaequEinkommen1000k = hhaequEinkommen/1000,
+         hhaequVermoegen1000k = hhaequVermoegen/1000) %>% 
   mutate(anz_teilnahme = factor(anz_teilnahme,
                                 levels = c(0,1,2,3,4,5,6,7,8,9,10),
                                 labels = c("0","1","2","3","4","5","6","7","8","9","10")))
@@ -364,16 +365,19 @@ data_mlogit_h2 <- data_mlogit %>%
 #Build ordinal logistic regression model
 ologit_empty = polr(anz_teilnahme ~ alter_v + sex_c + konfession_c + residenz10 + zugezogen, 
                     data = data_mlogit_h2, Hess = TRUE)
-ologit_income = polr(anz_teilnahme ~ alter_v + sex_c + konfession_c + residenz10 + zugezogen + steuerb_einkommen_imputed, 
+ologit_income = polr(anz_teilnahme ~ alter_v + sex_c + konfession_c + residenz10 + zugezogen +
+                       steuerb_einkommen_imputed1000k, 
                     data = data_mlogit_h2, Hess = TRUE)
 summary(ologit_income)
 
-ologit_wealth= polr(anz_teilnahme ~ alter_v + sex_c + konfession_c + residenz10 + zugezogen + reinvermoegen_imputed, 
+ologit_wealth= polr(anz_teilnahme ~ alter_v + sex_c + konfession_c + residenz10 + zugezogen +
+                      reinvermoegen_imputed1000k, 
                    data = data_mlogit_h2, Hess = TRUE)
 summary(ologit_wealth)
 
 
-ologit_incwealth= polr(anz_teilnahme ~ alter_v + sex_c + konfession_c + residenz10 + zugezogen + steuerb_einkommen_imputed + reinvermoegen_imputed, 
+ologit_incwealth= polr(anz_teilnahme ~ alter_v + sex_c + konfession_c + residenz10 + zugezogen +
+                         steuerb_einkommen_imputed1000k + reinvermoegen_imputed1000k, 
                       data = data_mlogit_h2, Hess = TRUE)
 # summary(ologit_incwealth)
 
@@ -389,7 +393,7 @@ round(pR2(ologit_incwealth),4)
 
 ```{r message=FALSE, warning=FALSE}
 
-brant(model_incwealth, by.var = FALSE)
+# brant(model_incwealth, by.var = FALSE)
 ```
 
 Parallel Regression Assumption only holds for predictors age, gender, income and wealth.
@@ -405,14 +409,14 @@ https://cran.r-project.org/web/packages/MNLpred/readme/README.html
 
 ```{r message=FALSE, warning=FALSE}
 library(nnet)
-library(stargazer)
+
 
 data_mlogit_h2 <- data_mlogit %>% 
-  mutate(steuerb_einkommen_imputed = steuerb_einkommen_imputed/1000,
-         massgebendesEinkommen_imputed = massgebendesEinkommen_imputed/1000,
-         reinvermoegen_imputed = reinvermoegen_imputed/1000,
-         hhaequEinkommen = hhaequEinkommen/1000,
-         hhaequVermoegen = hhaequVermoegen/1000) %>% 
+  mutate(steuerb_einkommen_imputed1000k = steuerb_einkommen_imputed/1000,
+         massgebendesEinkommen_imputed1000k = massgebendesEinkommen_imputed/1000,
+         reinvermoegen_imputed1000k = reinvermoegen_imputed/1000,
+         hhaequEinkommen1000k = hhaequEinkommen/1000,
+         hhaequVermoegen1000k = hhaequVermoegen/1000) %>% 
   mutate(age_cat = case_when(
     alter_v <= 35 ~ "18-35-Jährige",
     alter_v > 35 & alter_v <= 50 ~ "35-50-Jährige",
@@ -429,11 +433,14 @@ data_mlogit_h2 <- data_mlogit %>%
 
 mlogit_empty <- multinom(vote_type ~ alter_v + sex_c + konfession_c + residenz10 + zugezogen ,
                        data = data_mlogit_h2)
-mlogit_inc <- multinom(vote_type ~ alter_v + sex_c + konfession_c + residenz10 + zugezogen + steuerb_einkommen_imputed,
+mlogit_inc <- multinom(vote_type ~ alter_v + sex_c + konfession_c + residenz10 + zugezogen +
+                         steuerb_einkommen_imputed1000k,
                        data = data_mlogit_h2)
-mlogit_wealth <- multinom(vote_type ~ alter_v + sex_c + konfession_c + residenz10 + zugezogen + reinvermoegen_imputed,
+mlogit_wealth <- multinom(vote_type ~ alter_v + sex_c + konfession_c + residenz10 + zugezogen +
+                            reinvermoegen_imputed1000k,
                        data = data_mlogit_h2)
-mlogit_incwealth <- multinom(vote_type ~ alter_v + sex_c + konfession_c + residenz10 + zugezogen + steuerb_einkommen_imputed + reinvermoegen_imputed,
+mlogit_incwealth <- multinom(vote_type ~ alter_v + sex_c + konfession_c + residenz10 + zugezogen +
+                               steuerb_einkommen_imputed1000k + reinvermoegen_imputed1000k,
                        data = data_mlogit_h2)
 
 stargazer(mlogit_inc, mlogit_wealth, mlogit_incwealth, type = "text")
@@ -456,12 +463,14 @@ round(pR2(mlogit_incwealth),4)
 #### Predicted Probability for Income and wealth
 
 ```{r message=FALSE, warning=FALSE}
-mlogit_inc2 <- multinom(vote_type ~ age_cat_num + sex_c + konfession_c + residenz10 + zugezogen + steuerb_einkommen_imputed,
-                       data = data_mlogit_h2)
-mlogit_wealth2 <- multinom(vote_type ~ age_cat_num + sex_c + konfession_c + residenz10 + zugezogen + reinvermoegen_imputed,
-                       data = data_mlogit_h2)
-
-library(ggplot2)
+# Predicted Probability for Income
+# Take quartiles of age for destinction of effects
+mlogit_inc2 <- multinom(vote_type ~ age_cat_num + sex_c + konfession_c + residenz10 + 
+                          zugezogen + steuerb_einkommen_imputed1000k,
+                        data = data_mlogit_h2)
+mlogit_wealth2 <- multinom(vote_type ~ age_cat_num + sex_c + konfession_c + residenz10 + 
+                             zugezogen + reinvermoegen_imputed1000k,
+                           data = data_mlogit_h2)
 
 profile1 <- predicts(mlogit_inc2, "1;mode;mode;mode;mode;0-200,10", position = 6)
 profile2 <- predicts(mlogit_inc2, "2;mode;mode;mode;mode;0-200,10", position = 6)
@@ -479,21 +488,25 @@ profile_income <- profile1 %>%
   mutate(level = fct_relevel(level, c("never voter", "selective voter", "always voter")))
 rm(profile1, profile2, profile3, profile4)
 
-plot_income <- ggplot(profile_income, aes(x = steuerb_einkommen_imputed_val1, col = age_cat)) +
-  geom_line(aes(y = val1_mean), size = 1) +
+plot_income <- ggplot(profile_income, aes(x = steuerb_einkommen_imputed1000k_val1, group= age_cat)) +
+  geom_line(aes(y = val1_mean, color = age_cat), size = 0.5) + 
+  geom_ribbon(aes(y = val1_mean, ymin = val1_lower, ymax = val1_upper, fill = age_cat), alpha = .2) +
   facet_wrap(~ level, ncol = 1) +
+  scale_colour_masterthesis() +
+  scale_fill_masterthesis() +
+  guides(fill="none") +
+  theme_masterthesis() +
   labs(title = "Einkommen",
        x = "Einkommen (in 1000 Fr.)", 
        y = "Predicted Probability",
-       color = "Altersgruppe") +
-  scale_colour_masterthesis()+
-  theme_masterthesis()
+       color = "Altersgruppe")
 
+
+# Predicted Probabilities for Wealth
 profile1 <- predicts(mlogit_wealth2, "1;mode;mode;mode;mode;0-220,10", position = 6)
 profile2 <- predicts(mlogit_wealth2, "2;mode;mode;mode;mode;0-220,10", position = 6)
 profile3 <- predicts(mlogit_wealth2, "3;mode;mode;mode;mode;0-220,10", position = 6)
 profile4 <- predicts(mlogit_wealth2, "4;mode;mode;mode;mode;0-220,10", position = 6)
-rm(profile1, profile2, profile3, profile4)
 
 profile_wealth <- profile1 %>% 
   bind_rows(profile2, profile3, profile4) %>% 
@@ -501,33 +514,55 @@ profile_wealth <- profile1 %>%
     age_cat_num ==1 ~ "18-35-Jährige",
     age_cat_num ==2 ~ "35-50-Jährige",
     age_cat_num ==3 ~ "50-65-Jährige",
-    age_cat_num ==4  ~ "Über 65-Jährige"
+    age_cat_num ==4 ~ "Über 65-Jährige"
   )) %>% 
   mutate(level = fct_relevel(level, c("never voter", "selective voter", "always voter")))
 rm(profile1, profile2, profile3, profile4)
 
    
-plot_wealth <- ggplot(profile_wealth, aes(x = reinvermoegen_imputed_val1, col = age_cat)) +
-  geom_line(aes(y = val1_mean), size = 1) +
+plot_wealth <- ggplot(profile_wealth, aes(x = reinvermoegen_imputed1000k_val1, group = age_cat)) +
+  geom_line(aes(y = val1_mean, color = age_cat), size = 0.5) + 
+  geom_ribbon(aes(y = val1_mean, ymin = val1_lower, ymax = val1_upper, fill = age_cat), alpha = .2) +
   facet_wrap(~ level, ncol = 1) +
+  scale_colour_masterthesis() +
+  scale_fill_masterthesis() +
+  guides(fill="none") +
+  theme_masterthesis() +
   labs(title = "Vermögen",
        x = "Vermögen (in 1000 Fr.)", 
        y = "Predicted Probability",
-       color = "Altersgruppe") +
-  scale_colour_masterthesis()+
-  theme_masterthesis() 
+       color = "Altersgruppe")
 
 
 library(ggpubr)
-ggarrange(plot_income, plot_wealth, ncol=2, common.legend = TRUE, legend="bottom")
+plot_predprob <- ggarrange(plot_income, plot_wealth, ncol=2, common.legend = TRUE, legend="bottom")
+plot_predprob
+
+# save Plot 
+ggsave("/Users/alinelaurametzler/Documents/Universität/Master/Master Thesis/MA-Code/Output/plot_predprob.png",
+       width = 20, height = 20, units = "cm")
 
 ```
 
-
-## H3: Effects of Jumps in Income / Wealth
+## H3: Effect of Income by Age
 
 ```{r message=FALSE, warning=FALSE}
-# der Scatterplot verleitet zur Annahme dass Einkommen einen nicht-linearen Effekt auf Die Beteiligung an Abstimmungen hat
+mlogit_incwealthage <- multinom(vote_type ~ alter_v + sex_c + konfession_c + residenz10 + 
+                                  zugezogen + steuerb_einkommen_imputed1000k + steuerb_einkommen_imputed1000k*alter_v +
+                                  reinvermoegen_imputed1000k + reinvermoegen_imputed1000k*alter_v,
+                       data = data_mlogit_h2)
+
+stargazer(mlogit_inc, mlogit_wealth, mlogit_incwealth, mlogit_incwealthage, type = "text")
+
+
+# Verändert sich R2??
+```
+
+
+## H4: Effects of Jumps in Income / Wealth
+
+```{r message=FALSE, warning=FALSE}
+# der Scatterplot verleitet zur Annahme dass Einkommen einen nicht-linearen Effekt auf die Beteiligung an Abstimmungen hat
 scatter_income <- data_mlogit %>% 
   filter(!is.na(steuer_tarif_imputed)) %>% 
   ggplot(aes(x = massgebendesEinkommen_imputed_noweights, y = anz_teilnahme)) +
@@ -551,6 +586,10 @@ scatter_hhaequEinkommen <- data_mlogit %>%
 scatter_hhaequEinkommen
 ```
 
+make sure that in the following 1-2 years income doesn't rise again, so we can exclude a short term 
+jump in income which could step from a big investment or 
+
+also exclude people that are retired for the analysis of income jumps
 
 ```{r message=FALSE, warning=FALSE}
 # get aggregated data by year for respondents
@@ -572,8 +611,8 @@ data_year <- data %>%
             konfession = last(konfession_imp),
             residenz = mean(residenz_imp, na.rm=TRUE),
             zugezogen = last(zugezogen),
-            einkommen = mean(massgebendesEinkommen_imputed, na.rm=TRUE),
-            vermoegen = mean(reinvermoegen_imputed, na.rm=TRUE)
+            einkommen = mean(hhaequEinkommen, na.rm=TRUE),
+            vermoegen = mean(hhaequVermoegen, na.rm=TRUE)
             ) %>% 
   distinct() %>% 
   ungroup() %>% 
@@ -695,7 +734,7 @@ plot_did_wealthto0
 ```
 
 
-## H4: Effect of parents income on children (Übertragungshypothese)
+## H5: Effect of parents income on children (Übertragungshypothese)
 
 Compare households with high income/wealth to households with low income wealth
 
@@ -704,33 +743,120 @@ Compare highest earning person of household to other members that have less inco
 
 
 ```{r message=FALSE, warning=FALSE}
-# TODO: can I just  define youth by their age group (18-25) living with older (parent) age group (35-65)?
-# -->what about couples, shared flats with bigger age gaps? (right now I just ignore this)
+# Since there is no exact Information on family constellation (only HH ID), I just  
+# define youth by their age group (18-25) living with older (parent) age group (35-65)
+# Filtering households with more than 1 generation excludes shared flats with big 
+# age gaps and couples with big age gaps
+# this approach ignores families that are out of the defined age range (which is alright
+# since we want to look at the effect on the younger generation anyways)
+
 data_households <- data %>% 
   ungroup() %>% 
-  # only look at household with more than 1 generation
+  # only households where ID is available
+  filter(!is.na(householdID_sw_imp)) %>% 
+  # only look at private households (exclude grouped and collective hh)
   filter(haushalttyp_sw_1_imp == 1) %>% 
-  filter(generationen_sw_imp %in% c(2, 3, 4)) %>% 
+  # only look at household with more than 1 generation
+  filter(generationen_sw_imp %in% c(2, 3, 4)) %>%
+  # define age groups for younger and older generation
   mutate(young_pers = case_when(
     alter_v <= 25 ~ 1,
     TRUE ~ 0
   )) %>% 
   mutate(older_pers = case_when(
-    alter_v > 35 & alter_v <= 65 ~ 1,
+    alter_v > 35 & alter_v <= 70 ~ 1,
     TRUE ~ 0
   )) %>% 
-  group_by(householdID_sw) %>% 
-  # all housholds (mind. 2 generations) with young people and older people in them
-  filter(sum(young_pers) >= 1 & sum(older_pers) >= 1) %>% 
-  # use household income / wealth to show affluency of family
-  filter(young_pers == 1) %>% 
-  ungroup() %>% 
+  group_by(householdID_sw_imp, abstimmungsdatum) %>% 
+  # all households (mind. 2 generations) with younger and older generation in them
+  mutate(sum_young_pers = sum(young_pers),
+         sum_older_pers = sum(older_pers)) %>% 
+  filter(sum_young_pers >= 1 & sum_older_pers >= 1) %>% 
+  arrange(householdID_sw_imp, id_ek) %>% 
+  # use household income / wealth to show affluence of family
   filter(!is.na(hhaequEinkommen)) %>% 
   filter(!is.na(hhaequVermoegen)) %>% 
+  # income of older generation alone
+  group_by(householdID_sw, abstimmungsdatum, older_pers) %>% 
+  mutate(income_older = case_when(
+    # married couples have joined incomes
+    steuer_tarif_imputed == "verheiratet" & older_pers == 1 ~ 
+      sum(steuerb_einkommen_imputed2)/(1 + ((sum(older_pers)-1)*0.5)),
+    steuer_tarif_imputed == "alleinstehend/unverheiratet"  & older_pers == 1 ~ 
+      sum(steuerb_einkommen_imputed)/(1 + ((sum(older_pers)-1)*0.5)) ,
+    older_pers == 0 ~ NA_real_, 
+    TRUE ~ NA_real_
+  )) %>% 
+  mutate(wealth_older = case_when(
+    # married couples have joined incomes
+    steuer_tarif_imputed == "verheiratet" & older_pers == 1 ~ 
+      sum(reinvermoegen_imputed2)/(1 + ((sum(older_pers)-1)*0.5)),
+    steuer_tarif_imputed == "alleinstehend/unverheiratet" & older_pers == 1 ~ 
+      sum(reinvermoegen_imputed) /(1 + ((sum(older_pers)-1)*0.5)),
+    older_pers == 0 ~ NA_real_, 
+    TRUE ~ NA_real_
+  )) %>% 
+  ungroup() %>% 
+  group_by(householdID_sw_imp, abstimmungsdatum) %>% 
+  fill(wealth_older, .direction = "updown") %>%
+  fill(income_older, .direction = "updown") %>%
+  ungroup() %>% 
+  mutate(inc_quantile25 = quantile(income_older, 0.25, na.rm = TRUE),
+         inc_quantile50 = quantile(income_older, 0.5, na.rm = TRUE),
+         inc_quantile75 = quantile(income_older, 0.75, na.rm = TRUE),
+         wea_quantile25 = quantile(wealth_older, 0.25, na.rm = TRUE),
+         wea_quantile50 = quantile(wealth_older, 0.5, na.rm = TRUE),
+         wea_quantile75 = quantile(wealth_older, 0.75, na.rm = TRUE)) %>% 
+  # parents income quantile as control
+  mutate(income_older_quantile = case_when(
+    is.na(income_older) ~ NA_character_,
+    income_older <= inc_quantile25 ~ "1. Quartil",
+    income_older > inc_quantile25 & income_older <= inc_quantile50 ~ "2. Quartil",
+    income_older > inc_quantile50 & income_older <= inc_quantile75 ~ "3. Quartil",
+    income_older > inc_quantile75 ~ "4. Quartil",
+    TRUE ~ NA_character_
+  )) %>% 
+  # parents wealth quantile as control
+  mutate(wealth_older_quantile = case_when(
+    is.na(wealth_older) ~ NA_character_,
+    wealth_older <= wea_quantile25 ~ "1. Quartil",
+    wealth_older > wea_quantile25 & wealth_older <= wea_quantile50 ~ "2. Quartil",
+    wealth_older > wea_quantile50 & wealth_older <= wea_quantile75 ~ "3. Quartil",
+    wealth_older > wea_quantile75 ~ "4. Quartil",
+    TRUE ~ NA_character_
+  )) %>% 
+  select(-inc_quantile25, -inc_quantile50, -inc_quantile75, -wea_quantile25, -wea_quantile50, -wea_quantile75) %>% 
   # parents voting behavior as second IV
+  mutate(beteiligt_num = case_when(
+    beteiligt == "mit Stimmbeteiligung" ~ 1,
+    beteiligt == "keine Stimmbeteiligung" ~ 0,
+    TRUE ~ NA_real_
+  )) %>% 
+  group_by(householdID_sw_imp, abstimmungsdatum, older_pers) %>% 
+  mutate(sum_older_pers_vote = case_when(
+    older_pers == 1 & beteiligt_num == 1 ~ sum(beteiligt_num),
+    older_pers == 1 & beteiligt_num == 0 ~ sum(beteiligt_num),
+    older_pers == 0 ~ NA_real_,
+    TRUE ~ NA_real_
+  )) %>% 
+  ungroup() %>% 
+  group_by(householdID_sw_imp, abstimmungsdatum) %>% 
+  fill(sum_older_pers_vote, .direction = "updown") %>% 
+  mutate(ant_older_per_vote = sum_older_pers_vote / sum_older_pers) %>% 
+  mutate(older_pers_vote = case_when(
+    ant_older_per_vote >= 0.99 ~ "Alle Eltern partizipieren",
+    ant_older_per_vote >= 0.01 & ant_older_per_vote < 0.99 ~ "Teils der Eltern partizipieren",
+    ant_older_per_vote <= 0.01 ~ "Keine Eltern partizipieren",
+    TRUE ~ NA_character_
+  )) %>%
+  select(-sum_older_pers_vote)
   
-  # take one random vote date per individual
+# only keep younger gen and take one random vote date per individual
+data_households_young <- data_households %>% 
+  filter(young_pers == 1) %>% 
+  ungroup() %>%
   group_by(id_ek) %>%
+  # take one random vote per Individual
   sample_n(1)
 
 
@@ -755,9 +881,31 @@ stargazer(mlogit_household_low, mlogit_household_high, type = "text")
 
 ```
 
+
+## H6: Empfundene Relevanz, Komplexität und Aufmerksamkeit der Abstimmung
+
+```{r message=FALSE, warning=FALSE}
+
+
+
 ```
 
-# Anhang
+## Robustness
+
+-->Auf Multikollinearität prüfen
+
+Alle Analysen mit HHEink, HHVerm und zeigen dass keine Veränderungen
+
+Alle Analysen mit Kateg. Einkommen/Alter etc..
+
+Analyse mit imputations dummies
+
+## Anhang
+
+
+Alle Analysen mit HHEink, HHVerm und zeigen dass keine Veränderungen
+
+Alle Analysen mit Kateg. Einkommen/Alter etc..
 
 ### Scatter Plot Einkommen und Anz. Teilnahmen bei 10 Abstimmungen
 
@@ -926,8 +1074,8 @@ data_year <- data %>%
             konfession = last(konfession_imp),
             residenz = mean(residenz_imp, na.rm=TRUE),
             zugezogen = last(zugezogen),
-            einkommen = mean(massgebendesEinkommen_imputed, na.rm=TRUE),
-            vermoegen = mean(reinvermoegen_imputed, na.rm=TRUE)
+            einkommen = mean(hhaequEinkommen, na.rm=TRUE),
+            vermoegen = mean(hhaequVermoegen, na.rm=TRUE)
             ) %>% 
   distinct() %>% 
   ungroup() 
